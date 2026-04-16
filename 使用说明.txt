@@ -1,0 +1,51 @@
+🌸 运营小助手 - 使用说明
+========================================
+
+【首次使用】
+
+1. 双击「启动.command」
+   - 首次会自动下载依赖(约30秒)
+   - 之后自动打开浏览器
+
+2. (可选)配置 AI 模型以获得精准分析
+   - 把「.env.example」复制一份,重命名为「.env」
+   - 用文本编辑器打开「.env」
+   - 填入任一 AI 服务的 API Key:
+     * DeepSeek(推荐,中文强、便宜): https://platform.deepseek.com
+     * 通义千问(支持识图): https://dashscope.console.aliyun.com
+     * Kimi: https://platform.moonshot.cn
+     * OpenAI: https://platform.openai.com
+
+   不配置也能用,只是分析字段为占位值。
+
+
+【日常使用】
+
+双击「启动.command」即可。要停止服务,关闭弹出的终端窗口。
+
+
+【首次双击提示风险?】
+
+macOS 会拦截未签名脚本。解决方法:
+- 右键「启动.command」→ 打开 → 在弹窗点「打开」
+- 或:系统设置 → 隐私与安全性 → "仍要打开"
+
+
+【目录说明】
+
+启动.command       双击启动(最常用)
+.env.example       配置模板(复制为 .env 后填 key)
+server.js          后端入口
+core/              基础能力(LLM / 抓取 / 平台识别)
+features/          功能模块(链接分析等)
+public/            前端资源
+
+
+【为什么不能直接双击 index.html?】
+
+因为需要后端做三件事:
+1. 抓取抖音/小红书页面(浏览器有 CORS 限制)
+2. 代理 AI 接口(避免 API key 暴露在前端)
+3. 后续扩展的更多功能(数据存储、文件处理等)
+
+所以必须通过 .command 启动一个本地服务。

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>运营小助手 · Ops Assistant</title>
+<link rel="stylesheet" href="/theme.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🌸%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">🌸</div>
+      <div>
+        <div class="brand-name">运营小助手</div>
+        <div class="brand-sub">Ops Assistant</div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">工具</div>
+      <nav id="feature-nav"></nav>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="llm-switcher" id="llm-switcher" hidden>
+        <label class="llm-switcher-label">使用模型</label>
+        <select id="llm-select"></select>
+      </div>
+      <div id="llm-status" class="llm-status">
+        <span class="dot"></span><span class="llm-text">LLM 状态加载中…</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="workspace" id="workspace">
+    <div class="loading-page"><span class="spinner"></span>加载中...</div>
+  </main>
+</div>
+
+<script type="module" src="/shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<div class="panel-header">
+  <h1>🔗 内容链接分析</h1>
+  <p>粘贴抖音 / 小红书链接，或上传文本、图片、视频、音频内容，一键拆解结构与可复用模板。</p>
+</div>
+
+<div class="grid-3">
+  <!-- STEP 1: INPUT -->
+  <section class="card">
+    <h3>📥 输入内容 <span class="tag pink">STEP 1</span></h3>
+
+    <div class="kind-tabs" id="la-kind-tabs">
+      <div class="kind-tab active" data-kind="url">链接</div>
+      <div class="kind-tab" data-kind="text">文本</div>
+      <div class="kind-tab" data-kind="image">图片</div>
+      <div class="kind-tab" data-kind="video">视频</div>
+      <div class="kind-tab" data-kind="audio">音频</div>
+    </div>
+
+    <div class="kind-pane" data-pane="url">
+      <label class="field-label">链接地址</label>
+      <input type="url" id="la-input-url" placeholder="粘贴抖音 / 小红书分享链接">
+      <div class="hint">支持 v.douyin.com / xhslink.com 短链，自动跟随跳转</div>
+    </div>
+
+    <div class="kind-pane" data-pane="text" hidden>
+      <label class="field-label">文本内容</label>
+      <textarea id="la-input-text" rows="7" placeholder="粘贴笔记正文、脚本文案、评论等..."></textarea>
+    </div>
+
+    <div class="kind-pane" data-pane="image" hidden>
+      <label class="field-label">上传图片</label>
+      <input type="file" id="la-input-image" accept="image/*">
+      <label class="field-label" style="margin-top:10px">图片描述（可选）</label>
+      <textarea id="la-input-image-caption" rows="3" placeholder="补充说明这张图的场景 / 目的"></textarea>
+      <div class="hint">使用 Vision 模型时（如 qwen-vl-plus / gpt-4o）可直接从画面推断</div>
+    </div>
+
+    <div class="kind-pane" data-pane="video" hidden>
+      <label class="field-label">封面图（可选）</label>
+      <input type="file" id="la-input-video-cover" accept="image/*">
+      <label class="field-label" style="margin-top:10px">文案 / 字幕转写<span style="color:var(--pink-500)">*</span></label>
+      <textarea id="la-input-video-transcript" rows="5" placeholder="粘贴视频台词、字幕或自己整理的文案"></textarea>
+      <div class="hint">MVP 阶段需粘贴转写文本；后续将接入语音识别自动转写</div>
+    </div>
+
+    <div class="kind-pane" data-pane="audio" hidden>
+      <label class="field-label">音频转写文本<span style="color:var(--pink-500)">*</span></label>
+      <textarea id="la-input-audio-transcript" rows="7" placeholder="粘贴播客 / 语音笔记的转写内容"></textarea>
+      <div class="hint">后续版本将支持上传 mp3/m4a 自动转写</div>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="la-btn-analyze">
+      <span class="btn-label">开始分析</span>
+    </button>
+  </section>
+
+  <!-- STEP 2: ANALYSIS -->
+  <section class="card">
+    <h3>🔍 分析结果 <span class="tag green">STEP 2</span></h3>
+    <div id="la-analysis-output">
+      <div class="empty">
+        <div class="empty-icon">🌸</div>
+        <div>填写左侧输入后，点击「开始分析」</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: TEMPLATE -->
+  <section class="card">
+    <h3>✨ 模板生成 <span class="tag pink">STEP 3</span></h3>
+    <label class="field-label">新主题</label>
+    <input type="text" id="la-template-topic" placeholder="例如：夏日防晒 / 新手化妆">
+    <button class="btn btn-secondary btn-full" id="la-btn-template" disabled style="margin-top:10px">
+      套用模板生成新内容
+    </button>
+    <div id="la-template-output" style="margin-top:14px">
+      <div class="empty">
+        <div class="empty-icon">🍀</div>
+        <div>完成分析后可按新主题生成</div>
+      </div>
+    </div>
+  </section>
+</div>
