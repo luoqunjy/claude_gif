@@ -41,9 +41,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'internal error' });
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  const info = llmInfo();
-  console.log(`\n🌸 运营助手 running at http://localhost:${port}`);
-  console.log(`   LLM: ${info.available ? `✓ ${info.model} @ ${info.baseUrl}` : '✗ 未配置 (降级规则模式)'}\n`);
-});
+// 只在本地直接运行时启动监听; Vercel/其他 serverless 环境会 import 本模块并自行托管
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    const info = llmInfo();
+    console.log(`\n🌸 运营助手 running at http://localhost:${port}`);
+    console.log(`   LLM: ${info.available ? '✓ 已配置' : '✗ 未配置 (降级规则模式)'}\n`);
+  });
+}
+
+export default app;
