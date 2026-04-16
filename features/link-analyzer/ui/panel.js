@@ -32,6 +32,13 @@ export function mount(root) {
       return;
     }
 
+    const credPayload = window.App?.getCredentials?.();
+    if (!credPayload) {
+      toast('请先点击左下角「🔑 API 设置」配置 API Key', 'error');
+      window.App?.openSettings?.();
+      return;
+    }
+
     setLoading(btnAnalyze, true, '分析中...');
     analysisOut.innerHTML = loadingBlock('正在拆解内容结构...');
 
@@ -39,7 +46,7 @@ export function mount(root) {
       const res = await fetch('/api/link-analyzer/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input, provider: window.App?.getProvider?.() })
+        body: JSON.stringify({ input, ...credPayload })
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
@@ -59,6 +66,13 @@ export function mount(root) {
     const topic = $('#la-template-topic').value.trim();
     if (!topic) { toast('请输入新主题', 'error'); return; }
 
+    const credPayload = window.App?.getCredentials?.();
+    if (!credPayload) {
+      toast('请先点击左下角「🔑 API 设置」配置 API Key', 'error');
+      window.App?.openSettings?.();
+      return;
+    }
+
     setLoading(btnTemplate, true, '生成中...');
     tplOut.innerHTML = loadingBlock('正在套用模板...');
 
@@ -66,7 +80,7 @@ export function mount(root) {
       const res = await fetch('/api/link-analyzer/template', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysis: state.analysis, topic, provider: window.App?.getProvider?.() })
+        body: JSON.stringify({ analysis: state.analysis, topic, ...credPayload })
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);

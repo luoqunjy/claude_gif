@@ -1,6 +1,6 @@
 import { fetchPage, parseMeta } from '../../core/fetcher.js';
 import { detectPlatform, extractUrl } from '../../core/platform.js';
-import { chat, llmAvailable, safeJsonParse } from '../../core/llm.js';
+import { chat, hasUsableCredentials, safeJsonParse } from '../../core/llm.js';
 
 export async function parseUrl(rawInput) {
   const url = extractUrl(rawInput) || rawInput;
@@ -48,7 +48,7 @@ export async function analyze(input, options = {}) {
 
   const { context, images, note } = await buildContext(input);
 
-  if (!llmAvailable(options.provider)) {
+  if (!hasUsableCredentials(options.provider, options.credentials)) {
     return ruleFallback(context, note);
   }
 
@@ -58,7 +58,8 @@ export async function analyze(input, options = {}) {
     images,
     json: true,
     temperature: 0.5,
-    provider: options.provider
+    provider: options.provider,
+    credentials: options.credentials
   });
   const parsed = safeJsonParse(raw);
   if (!parsed) return { error: 'llm_parse_failed', raw };
@@ -80,7 +81,7 @@ export async function generateTemplate(analysis, topic, options = {}) {
   if (!analysis) throw new Error('analysis required');
   if (!topic) throw new Error('topic required');
 
-  if (!llmAvailable(options.provider)) {
+  if (!hasUsableCredentials(options.provider, options.credentials)) {
     const tpl = analysis.template || {};
     return {
       title: (tpl.title || '[主题]的[N]个技巧').replaceAll('[主题]', topic),
@@ -95,7 +96,8 @@ export async function generateTemplate(analysis, topic, options = {}) {
     user: `原内容分析:\n${JSON.stringify(analysis, null, 2)}\n\n新主题: ${topic}\n\n请输出 JSON 格式的成品。`,
     json: true,
     temperature: 0.8,
-    provider: options.provider
+    provider: options.provider,
+    credentials: options.credentials
   });
   const parsed = safeJsonParse(raw);
   if (!parsed) return { error: 'llm_parse_failed', raw };
@@ -167,6 +169,6 @@ function ruleFallback(context, note) {
       exampleHook: '你有没有遇到过...',
       exampleCta: '有用的话点赞收藏,评论区聊聊你的看法~'
     },
-    _note: note || '当前未接入 LLM,字段为规则占位值。请在 .env 中填入任一供应商的 API Key 后重启。'
+    _note: note || '当前未配置 API Key,展示的是规则占位字段。请点击左下角「🔑 API 设置」填入 Kimi/DeepSeek/OpenAI 任一 Key。'
   };
 }

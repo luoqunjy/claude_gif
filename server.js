@@ -45,9 +45,8 @@ app.use((err, req, res, next) => {
 if (!process.env.VERCEL) {
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
-    const info = llmInfo();
     console.log(`\n🌸 运营助手 running at http://localhost:${port}`);
-    console.log(`   LLM: ${info.available ? '✓ 已配置' : '✗ 未配置 (降级规则模式)'}\n`);
+    console.log(`   模式: BYO Key (用户在页面填写自己的 API Key)\n`);
   });
 }
 
