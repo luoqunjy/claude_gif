@@ -2,8 +2,29 @@
  * 静态图转 GIF 工具 Pro — 从独立 HTML 迁移而来
  * AI 动画生成改走 ops-assistant 后端代理(/api/gif-maker/ai-animation),复用用户配置的 Kimi/DeepSeek/OpenAI 等
  */
+let __gifLibPromise = null;
+function loadGifLib() {
+  if (typeof window.GIF === 'function') return Promise.resolve();
+  if (__gifLibPromise) return __gifLibPromise;
+  __gifLibPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = '/features/gif-maker/ui/gif.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('gif.js 库加载失败,请刷新页面'));
+    document.head.appendChild(s);
+  });
+  return __gifLibPromise;
+}
+
 export function mount(root) {
-  // 等 gif.js 库加载完再启动
+  loadGifLib().then(() => go()).catch(err => {
+    console.error('[gif-maker]', err);
+    const warn = document.createElement('div');
+    warn.style.cssText = 'padding:20px;color:#c00;font-size:14px;';
+    warn.textContent = '❌ ' + err.message;
+    root.appendChild(warn);
+  });
+
   function go() {
 // ═══════════════════════════════════════════════════════════
 //  gif.js Worker 内嵌
@@ -2249,10 +2270,5 @@ renderCatTabs();
 renderGrid();
 renderSfxGrid();
 
-  }
-  if (window.__gifmk_lib_loaded && typeof window.GIF === 'function') {
-    go();
-  } else {
-    window.addEventListener('gifmk:libLoaded', go, { once: true });
   }
 }
