@@ -1,0 +1,287 @@
+<link rel="stylesheet" href="/features/gif-maker/ui/panel.css">
+<script>
+(function(){
+  if(!window.__gifmk_lib_loaded){
+    var s=document.createElement('script');
+    s.src='/features/gif-maker/ui/gif.js';
+    s.onload=function(){window.__gifmk_lib_loaded=true;window.dispatchEvent(new Event('gifmk:libLoaded'));};
+    document.head.appendChild(s);
+  }
+})();
+</script>
+<div class="gifmk">
+
+
+
+<header class="app-header">
+  <div class="app-title"><span class="logo">✨</span>静态图转 GIF 工具 <span style="color:#888;font-weight:400;font-size:13px;margin-left:4px">Pro</span></div>
+  <div class="header-actions">
+    <button class="header-btn" id="btn-open-compress">🗜️ GIF 压缩</button>
+  </div>
+</header>
+
+<div class="main-layout">
+
+  <!-- ===== 左侧面板 ===== -->
+  <aside class="left-panel">
+
+    <!-- 上传 -->
+    <div class="card">
+      <div class="card-title">上传图片</div>
+      <div id="drop-zone">
+        <input type="file" id="file-input" accept="image/*" />
+        <div class="icon">🖼️</div>
+        <p>拖拽 / 点击上传 / <span>粘贴 Ctrl+V</span></p>
+        <p style="margin-top:4px;font-size:11px;">PNG / JPG / WebP</p>
+      </div>
+      <div id="preview-wrap">
+        <img id="thumb" src="" alt="" />
+        <div style="flex:1;min-width:0">
+          <div class="file-name" id="file-name-text"></div>
+          <div class="file-size" id="file-size-text"></div>
+        </div>
+        <button id="btn-reupload">重传</button>
+      </div>
+    </div>
+
+    <!-- 实时预览 -->
+    <div class="card">
+      <div class="card-title">实时预览</div>
+      <div class="preview-area">
+        <canvas id="preview-canvas"></canvas>
+        <div class="preview-empty" id="preview-empty">上传图片后实时预览动画效果</div>
+      </div>
+    </div>
+
+    <!-- 设置 -->
+    <div class="card">
+      <div class="card-title">输出设置</div>
+      <div class="setting-row">
+        <span class="setting-label">动画时长</span>
+        <select id="duration-select">
+          <option value="2">2 秒</option><option value="3" selected>3 秒</option>
+          <option value="4">4 秒</option><option value="5">5 秒</option>
+          <option value="6">6 秒</option><option value="8">8 秒</option><option value="10">10 秒</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">输出尺寸</span>
+        <select id="size-select">
+          <option value="auto">自动</option>
+          <option value="240" selected>240 × 240</option>
+          <option value="320">320 × 320</option>
+          <option value="480">480 × 480</option>
+          <option value="512">512 × 512</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">文件大小</span>
+        <select id="filesize-select">
+          <option value="0">不限</option>
+          <option value="512">≤ 500 KB</option>
+          <option value="1024" selected>≤ 1 MB</option>
+          <option value="2048">≤ 2 MB</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">背景色</span>
+        <select id="bg-select" title="非透明可大幅减少边缘噪点">
+          <option value="white" selected>白色（推荐）</option>
+          <option value="black">黑色</option>
+          <option value="gray">浅灰</option>
+          <option value="transparent-white">透明（白边·推荐）</option>
+          <option value="transparent-black">透明（黑边）</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">画质等级</span>
+        <select id="quality-select" title="更高画质=更大文件">
+          <option value="high" selected>高（细腻）</option>
+          <option value="medium">中</option>
+          <option value="low">低（文件小）</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">无限循环</span>
+        <label class="toggle"><input type="checkbox" id="loop-toggle" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+      </div>
+    </div>
+
+    <!-- 生成按钮 -->
+    <div class="card">
+      <button id="btn-generate">✨ 生成 GIF</button>
+      <div id="progress-wrap">
+        <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+        <div id="progress-text">准备中...</div>
+      </div>
+    </div>
+
+    <!-- 结果 -->
+    <div class="card" id="result-wrap">
+      <div class="card-title">生成结果</div>
+      <img id="result-img" src="" alt="GIF 预览" />
+      <div id="result-meta"></div>
+      <a id="btn-download" download="animation.gif">⬇ 下载 GIF</a>
+    </div>
+
+  </aside>
+
+  <!-- ===== 右侧面板 ===== -->
+  <main class="right-panel">
+
+    <!-- Tab 切换 -->
+    <div class="tabs">
+      <button class="tab active" data-tab="animation">🎬 动画效果</button>
+      <button class="tab" data-tab="sfx">✨ 特效叠加</button>
+      <button class="tab" data-tab="ai">🤖 AI 自定义</button>
+    </div>
+
+    <!-- 动画效果 Tab -->
+    <div class="tab-panel active" id="tab-animation">
+      <div class="card">
+        <div class="card-title">
+          <span>选择动画（<span id="anim-count">100</span> 种）</span>
+          <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa;font-size:11px">当前：<span id="selected-anim-name">淡入淡出</span></span>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="effect-search" placeholder="搜索：旋转、弹跳、故障、扭曲、可爱…" autocomplete="off" />
+          <button class="search-clear" id="search-clear">✕</button>
+        </div>
+        <div class="cat-tabs" id="cat-tabs"></div>
+        <div class="effect-grid" id="effect-grid"></div>
+      </div>
+    </div>
+
+    <!-- 特效叠加 Tab -->
+    <div class="tab-panel" id="tab-sfx">
+      <div class="card">
+        <div class="card-title">
+          <span>特效叠加（<span id="sfx-count">30</span> 种 · 可与动画叠加）</span>
+          <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa;font-size:11px">当前：<span id="selected-sfx-name">无</span></span>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="sfx-search" placeholder="搜索：爱心、闪电、爆炸、樱花…" autocomplete="off" />
+        </div>
+        <div class="cat-tabs" id="sfx-cat-tabs">
+          <div class="cat-tab active" data-sfx-cat="全部">全部</div>
+          <div class="cat-tab" data-sfx-cat="⭐收藏">⭐收藏</div>
+        </div>
+        <div class="effect-grid" id="sfx-grid">
+          <div class="sfx-none-btn selected" data-sfx-none>
+            <span class="ei">🚫</span>无特效
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Tab -->
+    <div class="tab-panel" id="tab-ai">
+      <div class="card">
+        <div class="card-title">AI 自定义效果 <span class="ai-badge">✦ AI</span></div>
+        <p class="hint" style="margin-bottom:12px;padding:8px 10px;background:#f5f6ff;border-radius:8px;color:#5b6af0;">
+          💡 本功能已接入统一 LLM 配置。点左下角「🔑 API 设置」填入 Kimi / DeepSeek / OpenAI 任一即可。
+        </p>
+        <div style="margin-bottom:8px;font-size:13px;color:#555;font-weight:500;">用中文描述你想要的动画效果</div>
+        <textarea id="effect-desc" placeholder="例如：图片先快速旋转一圈同时放大，然后缓慢缩回原来大小并淡出"></textarea>
+        <p class="hint">描述越具体效果越好（速度、方向、透明度变化等）</p>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <button class="ai-btn" id="btn-ai-gen">✦ AI 生成</button>
+          <span id="ai-status"></span>
+        </div>
+        <div id="ai-result">
+          <div style="font-size:11px;color:#888;margin-bottom:5px;">生成的动画代码：</div>
+          <div class="code-block" id="ai-code"></div>
+          <div class="save-row">
+            <input type="text" id="effect-name" placeholder="给这个效果起个名字" maxlength="10" />
+            <button class="save-btn" id="btn-save-effect">保存效果</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+<canvas id="offscreen"></canvas>
+<canvas id="sfx-canvas"></canvas>
+
+<!-- ===== GIF 压缩弹窗 ===== -->
+<div class="modal-overlay" id="compress-modal">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h2>🗜️ GIF 批量压缩</h2>
+      <button class="modal-close" id="close-compress">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="compress-drop">
+        <input type="file" id="compress-input" accept="image/gif" multiple />
+        <div class="icon">📁</div>
+        <p>拖拽 GIF 到此处，或 <span>点击选择文件</span> / <span>粘贴 Ctrl+V</span></p>
+        <p style="margin-top:6px;font-size:12px;color:#aaa">支持批量 · 仅支持 .gif 格式</p>
+      </div>
+
+      <div class="compress-settings">
+        <div class="compress-setting-item">
+          <label>压缩目标</label>
+          <select id="compress-target">
+            <option value="300">≤ 300 KB</option>
+            <option value="500">≤ 500 KB</option>
+            <option value="1024" selected>≤ 1 MB</option>
+            <option value="2048">≤ 2 MB</option>
+            <option value="5120">≤ 5 MB</option>
+            <option value="0">不限制</option>
+          </select>
+        </div>
+        <div class="compress-setting-item">
+          <label>最大尺寸</label>
+          <select id="compress-maxsize">
+            <option value="0">保持原尺寸</option>
+            <option value="240">240 px</option>
+            <option value="320" selected>320 px</option>
+            <option value="480">480 px</option>
+            <option value="640">640 px</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="batch-progress-wrap">
+        <div id="batch-progress-label"><span>准备中...</span><span id="batch-progress-pct">0%</span></div>
+        <div id="batch-progress-bar-bg"><div id="batch-progress-bar"></div></div>
+      </div>
+
+      <div id="compress-list"></div>
+
+      <div class="compress-actions">
+        <button id="btn-compress-all" disabled>开始压缩</button>
+        <button id="btn-download-all" disabled>📦 打包下载全部</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 对比预览弹窗 ===== -->
+<div class="modal-overlay" id="preview-modal">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <h2>🔍 对比预览 <span id="preview-filename" style="font-size:13px;color:#888;font-weight:400;margin-left:8px"></span></h2>
+      <button class="modal-close" id="close-preview">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="preview-compare">
+        <div class="preview-col">
+          <h3>原图<span class="size-tag" id="preview-orig-size">--</span></h3>
+          <div class="img-wrap"><img id="preview-orig" alt="原图" /></div>
+        </div>
+        <div class="preview-col">
+          <h3>压缩后<span class="size-tag good" id="preview-comp-size">--</span></h3>
+          <div class="img-wrap"><img id="preview-comp" alt="压缩后" /></div>
+        </div>
+      </div>
+      <div class="preview-stats" id="preview-stats"></div>
+    </div>
+  </div>
+</div>
+</div>
