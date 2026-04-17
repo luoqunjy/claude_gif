@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadFeatures } from './core/registry.js';
 import { llmInfo } from './core/llm.js';
+import { supportedSearchProviders } from './core/search.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,7 +17,12 @@ app.use('/features', express.static(path.join(__dirname, 'features')));
 const features = await loadFeatures();
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, llm: llmInfo(), features: features.map(f => f.id) });
+  res.json({
+    ok: true,
+    llm: llmInfo(),
+    search: { supported: supportedSearchProviders() },
+    features: features.map(f => f.id)
+  });
 });
 
 app.get('/api/features', (req, res) => {

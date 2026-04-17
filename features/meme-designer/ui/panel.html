@@ -1,0 +1,190 @@
+<div class="panel-header">
+  <h1>🎨 表情包设计助手</h1>
+  <p>反推提示词 / 正向生成 / 文案库 / 模板推荐 / 热梗搜索 —— 一站产出爆款素材</p>
+
+  <div class="model-bar" id="md-model-bar">
+    <div class="model-info">
+      <span class="model-dot" id="md-model-dot"></span>
+      <span id="md-model-name">加载中…</span>
+      <span id="md-model-vision" class="badge-vision" hidden>🖼️ Vision</span>
+    </div>
+    <div class="model-actions">
+      <button class="btn btn-ghost btn-sm" id="md-btn-edit-structures">📐 提示词结构</button>
+      <button class="btn btn-ghost btn-sm" id="md-btn-settings">🔑 API 设置</button>
+    </div>
+  </div>
+</div>
+
+<div class="md-tabs" id="md-tabs">
+  <button class="md-tab active" data-tab="reverse">🔍 反推提示词</button>
+  <button class="md-tab" data-tab="generate">✨ 正向生成</button>
+  <button class="md-tab" data-tab="captions">💬 文案库</button>
+  <button class="md-tab" data-tab="gallery">📚 模板推荐</button>
+  <button class="md-tab" data-tab="search">🌐 热梗搜索</button>
+</div>
+
+<div class="md-tab-pane" data-pane="reverse">
+  <div class="grid-2">
+    <section class="card">
+      <h3>📥 上传表情包图片</h3>
+      <div class="md-warn" id="md-vision-warn" hidden>
+        ⚠️ 当前模型不支持识图。请在设置里切换到 <strong>OpenAI</strong> 或 <strong>通义千问</strong>。
+        <button class="btn btn-primary btn-sm" id="md-btn-switch-vision" style="margin-top:8px">去切换</button>
+      </div>
+
+      <div class="md-uploader" id="md-uploader">
+        <input type="file" id="md-file" accept="image/*" hidden>
+        <div class="uploader-dropzone" id="md-dropzone">
+          <div class="uploader-icon">📎</div>
+          <div>点击选择图片 / 拖拽 / <kbd>⌘V</kbd> 粘贴</div>
+          <div class="uploader-hint">支持 JPG / PNG / WEBP / GIF,建议小于 4 MB</div>
+        </div>
+        <div class="uploader-preview" id="md-preview" hidden>
+          <img id="md-preview-img" src="" alt="预览">
+          <button class="btn btn-ghost btn-sm" id="md-clear-img">× 清除</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">使用的提示词结构</label>
+        <select id="md-rev-structure"></select>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">AI 绘图风格</label>
+        <select id="md-rev-style">
+          <option value="midjourney">Midjourney (含 --ar --niji 等参数)</option>
+          <option value="sd">Stable Diffusion (带权重,逗号分隔)</option>
+          <option value="dalle">DALL-E / 自然语言</option>
+          <option value="doubao">豆包/可灵 (中文自然描述)</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="md-btn-reverse">反推这张图的提示词</button>
+    </section>
+
+    <section class="card">
+      <h3>🎯 结构化结果</h3>
+      <div id="md-rev-output">
+        <div class="empty"><div class="empty-icon">🖼️</div>上传图片后点击反推</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="md-tab-pane" data-pane="generate" hidden>
+  <div class="grid-2">
+    <section class="card">
+      <h3>💡 描述你想要的表情包</h3>
+      <textarea id="md-gen-desc" rows="5" placeholder="例:一只橘猫瘫在沙发上无奈翻白眼,贴纸风,想表达'周一不想上班'"></textarea>
+
+      <div class="form-row">
+        <label class="field-label">使用的提示词结构</label>
+        <select id="md-gen-structure"></select>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">AI 绘图风格</label>
+        <select id="md-gen-style">
+          <option value="midjourney">Midjourney</option>
+          <option value="sd">Stable Diffusion</option>
+          <option value="dalle">DALL-E / 自然语言</option>
+          <option value="doubao">豆包/可灵</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="md-btn-generate">生成 3 个方案</button>
+    </section>
+
+    <section class="card">
+      <h3>🎨 候选方案</h3>
+      <div id="md-gen-output">
+        <div class="empty"><div class="empty-icon">✨</div>输入描述,获得 3 套不同风格的提示词</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="md-tab-pane" data-pane="captions" hidden>
+  <div class="grid-2">
+    <section class="card">
+      <h3>😂 情绪 / 场景描述</h3>
+      <textarea id="md-cap-scene" rows="4" placeholder="例:老板周五下午 5 点布置新需求,还要周一交"></textarea>
+      <button class="btn btn-primary btn-full" id="md-btn-captions">生成 6-8 条文案</button>
+
+      <div class="info-box">
+        💡 <strong>使用技巧</strong>：每条文案会标注情绪维度（愤怒/无语/摆烂/幽默…），点 📋 一键复制。
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>📝 文案候选</h3>
+      <div id="md-cap-output">
+        <div class="empty"><div class="empty-icon">💬</div>描述场景,一秒出 6-8 条候选</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="md-tab-pane" data-pane="gallery" hidden>
+  <div class="grid-2">
+    <section class="card">
+      <h3>🎭 推荐经典表情包模板</h3>
+      <textarea id="md-gal-theme" rows="3" placeholder="例:摆烂 / 破防 / 无语 / 内心戏太多 / 社畜日常"></textarea>
+      <button class="btn btn-primary btn-full" id="md-btn-gallery">推荐匹配的模板</button>
+
+      <div class="info-box">
+        💡 LLM 基于训练数据推荐"当前还在用的"经典梗图模板,每条附搜索关键词方便一键跳转找原图。
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>📦 模板清单</h3>
+      <div id="md-gal-output">
+        <div class="empty"><div class="empty-icon">📚</div>输入情绪主题获得模板推荐</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="md-tab-pane" data-pane="search" hidden>
+  <section class="card">
+    <h3>🌐 热门表情包图片搜索</h3>
+    <div class="search-warn" id="md-search-warn" hidden>
+      ⚠️ 未配置 Serper API Key,无法使用真实搜索。
+      <button class="btn btn-primary btn-sm" id="md-btn-config-search" style="margin-left:8px">去配置</button>
+    </div>
+    <div class="search-input-row">
+      <input type="text" id="md-search-q" placeholder="搜什么?例:熊猫头 / 打工人 / 周一 / 摆烂 / 阿尼亚">
+      <button class="btn btn-primary" id="md-btn-search">搜索</button>
+    </div>
+    <div id="md-search-output">
+      <div class="empty"><div class="empty-icon">🔍</div>输入关键词从 Google Images 拉回 12 张热图</div>
+    </div>
+  </section>
+</div>
+
+<!-- 提示词结构编辑器 弹窗 -->
+<div class="modal" id="md-structures-modal" hidden>
+  <div class="modal-backdrop" data-close-structures></div>
+  <div class="modal-card" style="width:620px">
+    <div class="modal-header">
+      <h2>📐 提示词结构编辑器</h2>
+      <button class="modal-close" data-close-structures>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-banner">
+        <strong>💡 说明</strong>
+        <span>提示词结构决定 LLM 在反推/正向生成时会填哪些字段。我们预置了 3 套常用结构,你可以修改它们、或添加完全自定义的新结构。修改后仅保存在你浏览器里。</span>
+      </div>
+      <div class="struct-list" id="md-struct-list"></div>
+      <button class="btn btn-secondary btn-full" id="md-btn-add-struct" style="margin-top:12px">➕ 新建一个结构</button>
+      <div id="md-struct-editor"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" id="md-struct-reset">恢复全部预设到默认</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary" data-close-structures>完成</button>
+    </div>
+  </div>
+</div>

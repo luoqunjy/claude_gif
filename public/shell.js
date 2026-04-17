@@ -3,6 +3,7 @@
  */
 
 const STORAGE_KEY = 'opsAssistant.llm.v2';
+const SEARCH_STORAGE_KEY = 'opsAssistant.search.v1';
 
 // ============== Storage helpers ==============
 function loadConfig() {
@@ -15,12 +16,27 @@ function loadConfig() {
 function saveConfig(cfg) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
 }
+function loadSearchConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(SEARCH_STORAGE_KEY)) || { active: 'serper', providers: {} };
+  } catch {
+    return { active: 'serper', providers: {} };
+  }
+}
+function saveSearchConfig(cfg) {
+  localStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify(cfg));
+}
 
 // ============== Globals exposed to feature panels ==============
 window.App = {
   getActiveProvider() {
     const cfg = loadConfig();
     return cfg.active || 'kimi';
+  },
+  getActiveProviderDef() {
+    const cfg = loadConfig();
+    const id = cfg.active || 'kimi';
+    return supportedProviders.find(p => p.id === id);
   },
   getCredentials() {
     const cfg = loadConfig();
@@ -29,11 +45,37 @@ window.App = {
     if (!cred?.apiKey) return null;
     return { provider: active, credentials: cred };
   },
+  getSearchCredentials() {
+    const cfg = loadSearchConfig();
+    const active = cfg.active || 'serper';
+    const cred = cfg.providers?.[active];
+    if (!cred?.apiKey) return null;
+    return { provider: active, ...cred };
+  },
   hasAnyKey() {
     const cfg = loadConfig();
     return Object.values(cfg.providers || {}).some(p => p?.apiKey);
   },
-  openSettings() { openSettingsModal(); }
+  hasVisionModel() {
+    const cfg = loadConfig();
+    const active = cfg.active;
+    const def = supportedProviders.find(p => p.id === active);
+    return Boolean(def?.vision && cfg.providers?.[active]?.apiKey);
+  },
+  listVisionProviders() {
+    return supportedProviders.filter(p => p.vision);
+  },
+  switchProvider(providerId) {
+    const cfg = loadConfig();
+    if (cfg.providers?.[providerId]?.apiKey) {
+      cfg.active = providerId;
+      saveConfig(cfg);
+      renderStatusAndSwitcher();
+      return true;
+    }
+    return false;
+  },
+  openSettings(tabId) { openSettingsAt(tabId); }
 };
 
 // ============== Bootstrap ==============
@@ -47,6 +89,8 @@ const btnOpenSettings = document.getElementById('btn-open-settings');
 let supportedProviders = [];
 let activeFeatureId = null;
 
+let supportedSearchProviders = [];
+
 async function main() {
   const [health, features] = await Promise.all([
     fetch('/api/health').then(r => r.json()).catch(() => null),
@@ -54,6 +98,7 @@ async function main() {
   ]);
 
   supportedProviders = health?.llm?.supported || [];
+  supportedSearchProviders = health?.search?.supported || [];
 
   renderStatusAndSwitcher();
   bindSettingsModal();
@@ -175,17 +220,24 @@ function bindSettingsModal() {
   });
 }
 
+let modalActiveTabType = 'llm'; // 'llm' | 'search'
+
 function openSettingsModal() { openSettingsAt(); }
 
-function openSettingsAt(providerId) {
+function openSettingsAt(providerId, type = 'llm') {
   if (!supportedProviders.length) {
     toast('供应商列表加载中,请稍后再试'); return;
   }
-  const cfg = loadConfig();
-  if (providerId && supportedProviders.find(p => p.id === providerId)) {
-    modalActiveTab = providerId;
+  modalActiveTabType = type;
+  if (type === 'search') {
+    modalActiveTab = providerId || supportedSearchProviders[0]?.id || 'serper';
   } else {
-    modalActiveTab = (cfg.active && supportedProviders.find(p => p.id === cfg.active)) ? cfg.active : 'kimi';
+    const cfg = loadConfig();
+    if (providerId && supportedProviders.find(p => p.id === providerId)) {
+      modalActiveTab = providerId;
+    } else {
+      modalActiveTab = (cfg.active && supportedProviders.find(p => p.id === cfg.active)) ? cfg.active : 'kimi';
+    }
   }
   renderTabs();
   renderForm();
@@ -197,23 +249,97 @@ function closeSettingsModal() { modal.hidden = true; }
 
 function renderTabs() {
   const cfg = loadConfig();
+  const searchCfg = loadSearchConfig();
   tabsEl.innerHTML = '';
+
+  // LLM section
+  const llmSection = document.createElement('div');
+  llmSection.className = 'provider-section';
+  llmSection.innerHTML = '<div class="provider-section-title">🤖 LLM 模型</div>';
+  const llmTabs = document.createElement('div');
+  llmTabs.className = 'provider-tabs-row';
   supportedProviders.forEach(p => {
     const tab = document.createElement('button');
-    tab.className = 'provider-tab' + (p.id === modalActiveTab ? ' active' : '');
+    const isActive = modalActiveTabType === 'llm' && p.id === modalActiveTab;
+    tab.className = 'provider-tab' + (isActive ? ' active' : '');
     const hasKey = Boolean(cfg.providers?.[p.id]?.apiKey);
-    tab.innerHTML = `${p.id === 'kimi' ? '⭐ ' : ''}${escapeHtml(p.name)}${hasKey ? ' <span class="dot-on"></span>' : ''}`;
+    tab.innerHTML = `${p.id === 'kimi' ? '⭐ ' : ''}${escapeHtml(p.name)}${hasKey ? ' <span class="dot-on"></span>' : ''}${p.vision ? ' <span class="badge-mini">🖼️</span>' : ''}`;
     tab.addEventListener('click', () => {
+      modalActiveTabType = 'llm';
       modalActiveTab = p.id;
       renderTabs();
       renderForm();
     });
-    tabsEl.appendChild(tab);
+    llmTabs.appendChild(tab);
   });
+  llmSection.appendChild(llmTabs);
+  tabsEl.appendChild(llmSection);
+
+  // Search section
+  if (supportedSearchProviders.length > 0) {
+    const searchSection = document.createElement('div');
+    searchSection.className = 'provider-section';
+    searchSection.innerHTML = '<div class="provider-section-title">🌐 搜索服务 <span class="section-sub">(用于表情包热梗搜索)</span></div>';
+    const searchTabs = document.createElement('div');
+    searchTabs.className = 'provider-tabs-row';
+    supportedSearchProviders.forEach(p => {
+      const tab = document.createElement('button');
+      const isActive = modalActiveTabType === 'search' && p.id === modalActiveTab;
+      tab.className = 'provider-tab' + (isActive ? ' active' : '');
+      const hasKey = Boolean(searchCfg.providers?.[p.id]?.apiKey);
+      tab.innerHTML = `${escapeHtml(p.name)}${hasKey ? ' <span class="dot-on"></span>' : ''}`;
+      tab.addEventListener('click', () => {
+        modalActiveTabType = 'search';
+        modalActiveTab = p.id;
+        renderTabs();
+        renderForm();
+      });
+      searchTabs.appendChild(tab);
+    });
+    searchSection.appendChild(searchTabs);
+    tabsEl.appendChild(searchSection);
+  }
 }
 
 function renderForm() {
+  if (modalActiveTabType === 'search') return renderSearchForm();
+  return renderLlmForm();
+}
+
+function renderSearchForm() {
+  const def = supportedSearchProviders.find(p => p.id === modalActiveTab);
+  if (!def) { formEl.innerHTML = ''; return; }
+  const cfg = loadSearchConfig();
+  const cur = cfg.providers?.[modalActiveTab] || {};
+
+  formEl.innerHTML = `
+    <div class="form-row">
+      <label class="form-label">API Key <span class="req">*</span></label>
+      <div class="key-input-wrap">
+        <input type="password" id="f-apikey" placeholder="${escapeHtml(`粘贴 ${def.name} 的 API Key`)}" value="${escapeHtml(cur.apiKey || '')}">
+        <button type="button" class="key-toggle" id="f-toggle">显示</button>
+      </div>
+      <div class="form-hint">
+        没有 Key？<a href="${escapeHtml(def.signupUrl)}" target="_blank" rel="noopener">前往 ${escapeHtml(def.name)} 申请 ↗</a>
+        <span style="color:var(--green-500);margin-left:8px">（${escapeHtml(def.freeTier)}）</span>
+      </div>
+      <div class="form-hint" style="margin-top:8px;padding:8px;background:var(--pink-50);border-radius:8px;">
+        💡 Serper 是基于 Google Images 的搜索服务,邮箱注册即可,无需信用卡。
+      </div>
+    </div>
+  `;
+
+  document.getElementById('f-toggle').addEventListener('click', () => {
+    const inp = document.getElementById('f-apikey');
+    const isPwd = inp.type === 'password';
+    inp.type = isPwd ? 'text' : 'password';
+    document.getElementById('f-toggle').textContent = isPwd ? '隐藏' : '显示';
+  });
+}
+
+function renderLlmForm() {
   const def = supportedProviders.find(p => p.id === modalActiveTab);
+  if (!def) { formEl.innerHTML = ''; return; }
   const cfg = loadConfig();
   const cur = cfg.providers?.[modalActiveTab] || {};
 
@@ -255,9 +381,25 @@ function renderForm() {
 
 function handleSave() {
   const apiKey = document.getElementById('f-apikey').value.trim();
+
+  if (modalActiveTabType === 'search') {
+    const cfg = loadSearchConfig();
+    if (!apiKey) {
+      delete cfg.providers[modalActiveTab];
+      toast('已清除该搜索服务配置');
+    } else {
+      cfg.providers[modalActiveTab] = { apiKey };
+      cfg.active = modalActiveTab;
+      toast(`✓ ${supportedSearchProviders.find(p => p.id === modalActiveTab).name} 已保存`);
+    }
+    saveSearchConfig(cfg);
+    renderStatusAndSwitcher();
+    closeSettingsModal();
+    return;
+  }
+
   const baseUrl = document.getElementById('f-baseurl')?.value.trim() || '';
   const model = document.getElementById('f-model')?.value.trim() || '';
-
   const cfg = loadConfig();
   if (!apiKey) {
     delete cfg.providers[modalActiveTab];
@@ -274,15 +416,18 @@ function handleSave() {
 
 function handleExport() {
   const cfg = loadConfig();
+  const searchCfg = loadSearchConfig();
   const count = Object.keys(cfg.providers || {}).filter(k => cfg.providers[k]?.apiKey).length;
-  if (!count) { toast('当前没有任何已配置的供应商,无需导出', 'error'); return; }
+  const searchCount = Object.keys(searchCfg.providers || {}).filter(k => searchCfg.providers[k]?.apiKey).length;
+  if (!count && !searchCount) { toast('当前没有任何已配置的供应商,无需导出', 'error'); return; }
 
   const payload = {
     _app: 'ops-assistant',
     _version: 'v2',
     exportedAt: new Date().toISOString(),
     active: cfg.active,
-    providers: cfg.providers
+    providers: cfg.providers,
+    search: searchCfg
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -311,24 +456,43 @@ function handleImport() {
       }
 
       const importedIds = Object.keys(data.providers).filter(k => data.providers[k]?.apiKey);
-      if (!importedIds.length) throw new Error('文件里没有任何已配置的供应商');
 
       const current = loadConfig();
       const merged = {
         active: data.active && data.providers[data.active]?.apiKey ? data.active : current.active,
         providers: { ...current.providers }
       };
-      // 只合并带 apiKey 的条目
       for (const id of importedIds) {
         merged.providers[id] = data.providers[id];
       }
       saveConfig(merged);
 
+      // 同步导入搜索服务配置(向后兼容旧文件)
+      let searchImportedCount = 0;
+      if (data.search?.providers) {
+        const currentSearch = loadSearchConfig();
+        const sIds = Object.keys(data.search.providers).filter(k => data.search.providers[k]?.apiKey);
+        searchImportedCount = sIds.length;
+        const mergedSearch = {
+          active: data.search.active && data.search.providers[data.search.active]?.apiKey ? data.search.active : currentSearch.active,
+          providers: { ...currentSearch.providers }
+        };
+        for (const id of sIds) mergedSearch.providers[id] = data.search.providers[id];
+        saveSearchConfig(mergedSearch);
+      }
+
+      if (!importedIds.length && !searchImportedCount) {
+        throw new Error('文件里没有任何已配置的供应商');
+      }
+
       // 刷新所有 UI
       renderStatusAndSwitcher();
       renderTabs();
       renderForm();
-      toast(`✓ 已导入 ${importedIds.length} 个供应商:${importedIds.join(', ')}`);
+      const parts = [];
+      if (importedIds.length) parts.push(`${importedIds.length} 个 LLM`);
+      if (searchImportedCount) parts.push(`${searchImportedCount} 个搜索服务`);
+      toast(`✓ 已导入 ${parts.join(' + ')}`);
     } catch (err) {
       toast('导入失败: ' + err.message, 'error');
     }
