@@ -42,6 +42,16 @@ for (const f of features) {
   }
 }
 
+// 未匹配的 API 路径返回 JSON 404
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `no such route: ${req.method} ${req.originalUrl}` });
+});
+
+// 其他所有未匹配路径回落到 index.html(SPA-style,避免被 Express 默认 404 页吓到)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.use((err, req, res, next) => {
   console.error('[err]', err);
   res.status(500).json({ error: err.message || 'internal error' });
