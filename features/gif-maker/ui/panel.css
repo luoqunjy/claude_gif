@@ -9,3 +9,111 @@
     @media (max-width:860px){
       .main-layout{flex-direction:column;padding:12px}.gifmk .left-panel {width:100%;position:static;max-height:none}.gifmk .app-title {font-size:15px}.gifmk .app-title .logo {font-size:18px}.gifmk .header-btn {padding:6px 12px;font-size:12px}.gifmk .tabs {overflow-x:auto}.gifmk .tab {min-width:80px;font-size:13px;padding:8px 10px}
     }
+
+/* ============================================================
+   紧凑模式 overrides — 让整个 feature 在一屏内可操作
+   ============================================================ */
+
+/* 去掉 max-width 限制,让内容充满 workspace */
+.gifmk .main-layout { max-width: none; padding: 14px; gap: 14px; }
+
+/* 隐藏原 app-header,改用浮动压缩按钮 */
+.gifmk .app-header { display: none; }
+.gifmk .float-compress {
+  position: absolute; top: 10px; right: 14px;
+  z-index: 10;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* 左侧面板更窄更紧凑 */
+.gifmk .left-panel {
+  width: 300px;
+  top: 12px;
+  max-height: calc(100vh - 30px);
+  gap: 10px;
+}
+.gifmk .right-panel { gap: 10px; }
+
+/* 卡片整体收紧 */
+.gifmk .card { padding: 12px 14px; border-radius: 10px; }
+.gifmk .card-title { margin-bottom: 8px; }
+
+/* 上传区:更矮 */
+.gifmk #drop-zone { padding: 14px 12px; }
+.gifmk #drop-zone .icon { font-size: 22px; margin-bottom: 2px; }
+.gifmk #drop-zone p { font-size: 12px; }
+
+/* 预览:更紧凑 */
+.gifmk .preview-area { min-height: 150px; padding: 4px; }
+.gifmk #preview-canvas { max-height: 200px; }
+.gifmk .preview-empty { padding: 20px 0; font-size: 12px; }
+
+/* 设置:2 列布局,压缩 */
+.gifmk .card:has(#duration-select) .card-title ~ .setting-row,
+.gifmk .card:has(#duration-select) { /* 设置卡 */ }
+.gifmk .setting-row { margin-bottom: 6px; font-size: 12px; gap: 6px; }
+.gifmk .setting-row .setting-label { font-size: 12px; }
+.gifmk .setting-row select {
+  padding: 4px 8px; font-size: 12px;
+  min-width: 0; max-width: 130px;
+}
+
+/* 生成按钮收紧 */
+.gifmk #btn-generate { padding: 10px; font-size: 14px; border-radius: 8px; }
+
+/* 结果卡:更小 */
+.gifmk #result-wrap img { max-height: 200px; }
+
+/* 右侧 tabs 更紧 */
+.gifmk .tabs { padding: 4px; }
+.gifmk .tab { padding: 8px 10px; font-size: 13px; }
+
+/* 搜索框更紧 */
+.gifmk .search-bar input { padding: 7px 12px 7px 32px; font-size: 12px; }
+
+/* 分类 tab */
+.gifmk .cat-tab { padding: 3px 10px; font-size: 11px; }
+
+/* 效果网格:更小的按钮,更多列 */
+.gifmk .effect-grid {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 5px;
+}
+.gifmk .effect-btn {
+  padding: 6px 2px 5px;
+  font-size: 10px;
+  border-radius: 7px;
+  border-width: 1.5px;
+}
+.gifmk .effect-btn .ei { font-size: 14px; margin-bottom: 2px; }
+.gifmk .effect-btn .cat-dot { width: 4px; height: 4px; margin-top: 2px; }
+.gifmk .fav-star { font-size: 10px; top: 1px; left: 2px; }
+.gifmk .del-btn { font-size: 8px; top: 1px; right: 2px; }
+
+/* 特效 none 按钮同步收紧 */
+.gifmk .sfx-none-btn { padding: 6px 2px 5px; font-size: 10px; }
+.gifmk .sfx-none-btn .ei { font-size: 14px; margin-bottom: 2px; }
+
+/* AI 面板紧凑 */
+.gifmk textarea#effect-desc { height: 54px; padding: 8px 10px; font-size: 12px; }
+.gifmk .ai-btn { padding: 6px 14px; font-size: 12px; }
+.gifmk .code-block { max-height: 100px; padding: 10px 12px; font-size: 10px; }
+
+/* 移除 gifmk 默认灰背景和 100vh,让它自然融入 ops-assistant workspace */
+.gifmk {
+  background: transparent;
+  min-height: auto;
+}
+
+/* 1280px 以下自适应:整行布局,左右栏分列 */
+@media (max-width: 1280px) {
+  .gifmk .left-panel { width: 270px; }
+  .gifmk .effect-grid { grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); }
+}
+
+/* 900px 以下:堆叠 */
+@media (max-width: 900px) {
+  .gifmk .main-layout { flex-direction: column; }
+  .gifmk .left-panel { width: 100%; position: static; max-height: none; }
+}
