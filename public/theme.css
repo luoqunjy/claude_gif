@@ -149,6 +149,7 @@ nav { display: flex; flex-direction: column; gap: 4px; }
 }
 .llm-switcher select:hover { border-color: var(--pink-300); }
 .llm-switcher select:focus { border-color: var(--pink-400); box-shadow: 0 0 0 3px var(--pink-100); }
+.llm-switcher select option[data-unconfigured="1"] { color: var(--ink-300); font-style: italic; }
 
 .llm-status {
   display: flex; align-items: center; gap: 8px;

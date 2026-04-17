@@ -100,43 +100,60 @@ async function loadFeature(feature, el) {
 
 // ============== Status badge + provider switcher ==============
 function renderStatusAndSwitcher() {
+  if (!supportedProviders.length) return;
+
   const cfg = loadConfig();
   const configured = supportedProviders.filter(p => cfg.providers?.[p.id]?.apiKey);
-  const active = supportedProviders.find(p => p.id === cfg.active) || configured[0];
+  const activeId = (cfg.active && cfg.providers?.[cfg.active]?.apiKey)
+    ? cfg.active
+    : (configured[0]?.id || 'kimi');
 
-  if (!configured.length) {
+  // 状态徽章
+  const activeDef = supportedProviders.find(p => p.id === activeId);
+  const activeCred = cfg.providers?.[activeId];
+  if (activeCred?.apiKey) {
+    llmStatus.classList.remove('warn'); llmStatus.classList.add('ok');
+    llmStatus.querySelector('.llm-text').textContent = `${activeDef.name} · ${activeCred.model || activeDef.model}`;
+    llmStatus.title = '已配置: ' + configured.map(p => p.name).join(' / ');
+  } else {
     llmStatus.classList.remove('ok'); llmStatus.classList.add('warn');
     llmStatus.querySelector('.llm-text').textContent = '未配置 API Key';
-    llmStatus.title = '点击上方「🔑 API 设置」填入 Key';
-    llmSwitcher.hidden = true;
-    return;
+    llmStatus.title = '点击上方「🔑 API 设置」或下拉框选择未配置项';
   }
 
-  llmStatus.classList.remove('warn'); llmStatus.classList.add('ok');
-  const cur = active && cfg.providers?.[active.id] ? active : configured[0];
-  llmStatus.querySelector('.llm-text').textContent = `${cur.name} · ${cfg.providers[cur.id].model || cur.model}`;
-  llmStatus.title = '已配置: ' + configured.map(p => p.name).join(' / ');
+  // 下拉框:永远显示所有 4 个供应商,未配置的加标识
+  llmSwitcher.hidden = false;
+  llmSelect.innerHTML = '';
+  supportedProviders.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    const hasKey = Boolean(cfg.providers?.[p.id]?.apiKey);
+    opt.textContent = `${p.name}${p.vision ? ' 🖼️' : ''}${hasKey ? '' : ' · 未配置'}`;
+    if (!hasKey) opt.dataset.unconfigured = '1';
+    llmSelect.appendChild(opt);
+  });
+  llmSelect.value = activeId;
 
-  if (configured.length >= 2) {
-    llmSwitcher.hidden = false;
-    llmSelect.innerHTML = '';
-    configured.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = `${p.name}${p.vision ? ' 🖼️' : ''}`;
-      llmSelect.appendChild(opt);
-    });
-    llmSelect.value = cur.id;
-    llmSelect.onchange = () => {
-      const c = loadConfig();
-      c.active = llmSelect.value;
-      saveConfig(c);
-      renderStatusAndSwitcher();
-      toast(`已切换到 ${supportedProviders.find(p => p.id === llmSelect.value).name}`);
-    };
-  } else {
-    llmSwitcher.hidden = true;
-  }
+  // 每次重绑 onchange (避免旧闭包)
+  llmSelect.onchange = () => {
+    const chosenId = llmSelect.value;
+    const c = loadConfig();
+    const chosenDef = supportedProviders.find(p => p.id === chosenId);
+    const hasKey = Boolean(c.providers?.[chosenId]?.apiKey);
+
+    if (!hasKey) {
+      // 未配置 → 打开设置窗口到对应 tab,并把下拉选项回退
+      toast(`${chosenDef.name} 还没配置,请先填入 API Key`);
+      llmSelect.value = activeId;  // 不切换 active
+      openSettingsAt(chosenId);
+      return;
+    }
+
+    c.active = chosenId;
+    saveConfig(c);
+    renderStatusAndSwitcher();
+    toast(`已切换到 ${chosenDef.name}`);
+  };
 }
 
 // ============== Settings modal ==============
@@ -157,12 +174,18 @@ function bindSettingsModal() {
   });
 }
 
-function openSettingsModal() {
+function openSettingsModal() { openSettingsAt(); }
+
+function openSettingsAt(providerId) {
   if (!supportedProviders.length) {
     toast('供应商列表加载中,请稍后再试'); return;
   }
   const cfg = loadConfig();
-  modalActiveTab = cfg.active && supportedProviders.find(p => p.id === cfg.active) ? cfg.active : 'kimi';
+  if (providerId && supportedProviders.find(p => p.id === providerId)) {
+    modalActiveTab = providerId;
+  } else {
+    modalActiveTab = (cfg.active && supportedProviders.find(p => p.id === cfg.active)) ? cfg.active : 'kimi';
+  }
   renderTabs();
   renderForm();
   modal.hidden = false;
