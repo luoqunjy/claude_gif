@@ -54,7 +54,7 @@
     <div class="modal-body">
       <div class="settings-banner">
         <strong>🔒 安全说明</strong>
-        <span>API Key 仅保存在你当前浏览器（localStorage），刷新页面不会丢，但不会上传到云端。其他人打开本网址需要填自己的 Key 才能使用。</span>
+        <span>API Key 仅保存在你当前浏览器（localStorage），不会上传云端。换浏览器 / 换设备 / 换域名时需重新填入 —— 建议点下方「💾 导出」保存一份备份文件，日后「📂 导入」一秒恢复。</span>
       </div>
 
       <div class="provider-tabs" id="provider-tabs"></div>
@@ -62,7 +62,8 @@
     </div>
 
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="settings-clear">清空当前供应商</button>
+      <button class="btn btn-ghost btn-sm" id="settings-import" title="从 JSON 备份文件恢复">📂 导入</button>
+      <button class="btn btn-ghost btn-sm" id="settings-export" title="把当前所有配置下载为 JSON 备份">💾 导出</button>
       <div style="flex:1"></div>
       <button class="btn btn-secondary" id="settings-cancel">取消</button>
       <button class="btn btn-primary" id="settings-save">保存</button>

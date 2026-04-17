@@ -168,7 +168,8 @@ function bindSettingsModal() {
   document.getElementById('settings-cancel').addEventListener('click', closeSettingsModal);
   document.querySelector('#settings-modal .modal-backdrop').addEventListener('click', closeSettingsModal);
   document.getElementById('settings-save').addEventListener('click', handleSave);
-  document.getElementById('settings-clear').addEventListener('click', handleClearCurrent);
+  document.getElementById('settings-export').addEventListener('click', handleExport);
+  document.getElementById('settings-import').addEventListener('click', handleImport);
   document.addEventListener('keydown', (e) => {
     if (!modal.hidden && e.key === 'Escape') closeSettingsModal();
   });
@@ -271,15 +272,68 @@ function handleSave() {
   closeSettingsModal();
 }
 
-function handleClearCurrent() {
-  if (!confirm(`确定清除当前供应商「${supportedProviders.find(p => p.id === modalActiveTab).name}」的配置?`)) return;
+function handleExport() {
   const cfg = loadConfig();
-  delete cfg.providers[modalActiveTab];
-  saveConfig(cfg);
-  renderForm();
-  renderTabs();
-  renderStatusAndSwitcher();
-  toast('已清除');
+  const count = Object.keys(cfg.providers || {}).filter(k => cfg.providers[k]?.apiKey).length;
+  if (!count) { toast('当前没有任何已配置的供应商,无需导出', 'error'); return; }
+
+  const payload = {
+    _app: 'ops-assistant',
+    _version: 'v2',
+    exportedAt: new Date().toISOString(),
+    active: cfg.active,
+    providers: cfg.providers
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ops-assistant-config-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`✓ 已导出 ${count} 个供应商,请妥善保管文件(内含 API Key)`);
+}
+
+function handleImport() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.providers || typeof data.providers !== 'object') {
+        throw new Error('格式错误:不是有效的配置文件');
+      }
+
+      const importedIds = Object.keys(data.providers).filter(k => data.providers[k]?.apiKey);
+      if (!importedIds.length) throw new Error('文件里没有任何已配置的供应商');
+
+      const current = loadConfig();
+      const merged = {
+        active: data.active && data.providers[data.active]?.apiKey ? data.active : current.active,
+        providers: { ...current.providers }
+      };
+      // 只合并带 apiKey 的条目
+      for (const id of importedIds) {
+        merged.providers[id] = data.providers[id];
+      }
+      saveConfig(merged);
+
+      // 刷新所有 UI
+      renderStatusAndSwitcher();
+      renderTabs();
+      renderForm();
+      toast(`✓ 已导入 ${importedIds.length} 个供应商:${importedIds.join(', ')}`);
+    } catch (err) {
+      toast('导入失败: ' + err.message, 'error');
+    }
+  };
+  input.click();
 }
 
 // ============== Utilities ==============

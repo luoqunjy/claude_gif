@@ -359,6 +359,12 @@ input[type="file"]:hover { border-color: var(--pink-400); background: var(--pink
 }
 .btn-ghost:hover:not(:disabled) { background: var(--green-200); }
 
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .btn-full { width: 100%; margin-top: auto; }
 
 /* ============================================================
