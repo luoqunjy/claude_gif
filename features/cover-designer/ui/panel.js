@@ -157,38 +157,58 @@ export function mount(root) {
           <div class="cd-cover-card" data-i="${i}">
             <img src="${escapeHtml(r.thumbnail || r.imageUrl)}" alt="${escapeHtml(r.title || '')}" loading="lazy" referrerpolicy="no-referrer">
             <div class="cover-title">${escapeHtml((r.title || '').slice(0, 40))}</div>
-            <button class="cover-use-btn" data-use-i="${i}">用作参考</button>
+            <div class="cover-actions">
+              <button class="cover-act copy" data-act="copy" data-i="${i}" title="复制图片">📋</button>
+              <button class="cover-act download" data-act="download" data-i="${i}" title="下载图片">⬇</button>
+              <button class="cover-act use" data-act="use" data-i="${i}" title="用作参考">🎨</button>
+            </div>
           </div>
         `).join('')}
       </div>
     `;
-    // 点卡片 → 打开原图
+    // 点卡片本体(图/标题) → 打开原图
     root.querySelectorAll('.cd-cover-card').forEach(c => {
       c.onclick = (e) => {
-        if (e.target.classList.contains('cover-use-btn')) return;
+        if (e.target.closest('.cover-actions')) return;
         const i = +c.dataset.i;
         const r = results[i];
         window.open(r.sourceUrl || r.imageUrl, '_blank');
       };
     });
-    // 点"用作参考" → 把图拉下来,放到参考图仿制 tab
-    root.querySelectorAll('.cover-use-btn').forEach(b => {
+    // 按钮事件
+    root.querySelectorAll('.cover-act').forEach(b => {
       b.onclick = async (e) => {
         e.stopPropagation();
-        const i = +b.dataset.useI;
+        const i = +b.dataset.i;
         const r = results[i];
-        b.textContent = '下载中...';
+        const act = b.dataset.act;
+        const origHtml = b.innerHTML;
         try {
-          const dataUrl = await urlToDataUrl(r.imageUrl);
-          state.refImage = dataUrl;
-          renderRefPreview();
-          // 切到参考图仿制 tab
-          $$('.cd-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'ref2img'));
-          $$('.cd-tab-pane').forEach(p => p.hidden = p.dataset.pane !== 'ref2img');
-          state.activeTab = 'ref2img';
-          toast('✓ 已用作参考图,去"参考图仿制"继续');
+          if (act === 'copy') {
+            b.innerHTML = '…';
+            await copyImageToClipboard(r.imageUrl);
+            b.innerHTML = '✓';
+            toast('✓ 图片已复制,可直接粘贴到微信/小红书');
+          } else if (act === 'download') {
+            b.innerHTML = '…';
+            await downloadImage(r.imageUrl, buildFilename(r));
+            b.innerHTML = '✓';
+            toast('✓ 已下载');
+          } else if (act === 'use') {
+            b.innerHTML = '…';
+            const dataUrl = await fetchViaProxy(r.imageUrl);
+            state.refImage = dataUrl;
+            renderRefPreview();
+            $$('.cd-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'ref2img'));
+            $$('.cd-tab-pane').forEach(p => p.hidden = p.dataset.pane !== 'ref2img');
+            state.activeTab = 'ref2img';
+            b.innerHTML = '✓';
+            toast('✓ 已用作参考图,去"参考图仿制"继续');
+          }
+          setTimeout(() => { b.innerHTML = origHtml; }, 1200);
         } catch (err) {
-          toast('下载图片失败,请右键保存后手动上传', 'error');
+          b.innerHTML = origHtml;
+          toast('失败: ' + err.message, 'error');
         }
       };
     });
@@ -429,18 +449,44 @@ export function mount(root) {
 
   function renderGeneratedImage(container, result, context, usedPrompt, ratio) {
     const src = result.imageBase64 || result.imageUrl;
+    const isDataUrl = src.startsWith('data:');
     container.innerHTML = `
       <div class="cd-output-image-wrap">
         <img src="${escapeHtml(src)}" alt="生成的封面">
       </div>
       <div class="cd-result-actions">
         <a class="btn btn-primary btn-sm" href="${escapeHtml(src)}" download="cover-${ratio.replace(':', 'x')}-${Date.now()}.png">⬇ 下载</a>
+        <button class="btn btn-ghost btn-sm" data-gen-copy>📋 复制图片</button>
         <button class="btn btn-secondary btn-sm" data-regen>🔄 换一张</button>
         <span class="hint" style="align-self:center;margin-left:4px">模型:${escapeHtml(result.provider || '')} · ${escapeHtml(result.model || '')}</span>
       </div>
       <div class="hint" style="margin-top:8px">生成用的提示词 (${context?.titleOnCover ? `标题:${escapeHtml(context.titleOnCover)}` : ''}):</div>
       <pre style="background:#f8f9fb;padding:8px 10px;border-radius:6px;font-size:11px;max-height:80px;overflow:auto;white-space:pre-wrap;word-break:break-all;">${escapeHtml(usedPrompt)}</pre>
     `;
+
+    // 复制生成图到剪贴板
+    container.querySelector('[data-gen-copy]').onclick = async (e) => {
+      const btn = e.currentTarget;
+      const orig = btn.innerHTML;
+      btn.innerHTML = '...';
+      btn.disabled = true;
+      try {
+        if (isDataUrl) {
+          const blob = await (await fetch(src)).blob();
+          const png = blob.type === 'image/png' ? blob : await blobToPng(blob);
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+        } else {
+          await copyImageToClipboard(src);
+        }
+        btn.innerHTML = '✓ 已复制';
+        toast('✓ 图片已复制,可直接粘贴');
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1500);
+      } catch (err) {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+        toast('复制失败: ' + err.message, 'error');
+      }
+    };
 
     container.querySelector('[data-regen]').onclick = async () => {
       // 同样提示词再生一次
@@ -485,8 +531,10 @@ function fileToDataUrl(file) {
   });
 }
 
-async function urlToDataUrl(url) {
-  const res = await fetch(url, { mode: 'cors' });
+/** 走后端 /api/cover-designer/proxy-image 代理,绕开源站 CORS + Referer */
+async function fetchViaProxy(url) {
+  const proxyUrl = `/api/cover-designer/proxy-image?url=${encodeURIComponent(url)}`;
+  const res = await fetch(proxyUrl);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   return new Promise((resolve, reject) => {
@@ -495,6 +543,66 @@ async function urlToDataUrl(url) {
     r.onerror = reject;
     r.readAsDataURL(blob);
   });
+}
+
+async function fetchBlobViaProxy(url) {
+  const proxyUrl = `/api/cover-designer/proxy-image?url=${encodeURIComponent(url)}`;
+  const res = await fetch(proxyUrl);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.blob();
+}
+
+async function copyImageToClipboard(url) {
+  if (!navigator.clipboard?.write) {
+    throw new Error('浏览器不支持 Clipboard API,请升级或用下载');
+  }
+  const blob = await fetchBlobViaProxy(url);
+  // Clipboard API 在多数浏览器只接受 PNG,转一下(JPG/WebP → PNG)
+  const pngBlob = blob.type === 'image/png' ? blob : await blobToPng(blob);
+  await navigator.clipboard.write([
+    new ClipboardItem({ 'image/png': pngBlob })
+  ]);
+}
+
+/** 用 canvas 把任意图片 blob 转为 PNG blob (给 clipboard 用) */
+async function blobToPng(blob) {
+  const img = new Image();
+  const objUrl = URL.createObjectURL(blob);
+  try {
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('图片加载失败'));
+      img.src = objUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas.toBlob 失败')), 'image/png');
+    });
+  } finally {
+    URL.revokeObjectURL(objUrl);
+  }
+}
+
+async function downloadImage(url, filename) {
+  const blob = await fetchBlobViaProxy(url);
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = filename || `cover-${Date.now()}.jpg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+}
+
+function buildFilename(r) {
+  const ext = (r.imageUrl || '').match(/\.(jpg|jpeg|png|webp|gif)(\?|$)/i)?.[1] || 'jpg';
+  const title = (r.title || 'cover').slice(0, 30).replace(/[\/\\:*?"<>|]/g, '_').trim();
+  return `${title}-${Date.now()}.${ext.toLowerCase()}`;
 }
 
 function loadingBlock(text) {
