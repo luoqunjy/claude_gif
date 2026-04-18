@@ -773,6 +773,271 @@ input[type="file"]:hover { border-color: var(--pink-400); background: var(--pink
 .form-advanced[open] summary { color: var(--pink-500); margin-bottom: 8px; }
 
 /* ============================================================
+   Model chip — 每个 feature 顶部的模型选择芯片
+   ============================================================ */
+
+.model-chip { display: inline-block; }
+.model-chip .chip-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  font-family: var(--font-sans); font-size: 12px;
+  color: var(--ink-700);
+  cursor: pointer;
+  transition: all .15s;
+}
+.model-chip .chip-btn:hover {
+  border-color: var(--pink-400);
+  box-shadow: 0 2px 8px rgba(255,139,167,0.15);
+}
+.model-chip .chip-btn.warn {
+  background: var(--pink-50);
+  border-color: var(--pink-300);
+  color: var(--pink-500);
+}
+.model-chip .chip-icon { font-size: 14px; line-height: 1; }
+.model-chip .chip-name { font-weight: 600; }
+.model-chip .chip-caret { font-size: 10px; color: var(--ink-500); }
+
+.chip-menu {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  min-width: 200px;
+  max-width: 280px;
+  padding: 6px 0;
+  font-size: 13px;
+  overflow: hidden;
+}
+.chip-menu-title {
+  font-size: 10px; font-weight: 700;
+  color: var(--ink-500);
+  padding: 8px 12px 4px;
+  letter-spacing: 0.5px;
+}
+.chip-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--ink-900);
+  display: flex; align-items: center; gap: 6px;
+  transition: background .1s;
+}
+.chip-menu-item:hover { background: var(--pink-50); color: var(--pink-500); }
+.chip-menu-item.unconfigured { color: var(--ink-500); }
+.chip-menu-item.unconfigured:hover { background: var(--green-50); color: #4FAE7A; }
+.chip-menu-item.chip-menu-clear {
+  border-top: 1px dashed var(--line);
+  color: var(--ink-500); font-size: 12px;
+}
+.chip-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 4px;
+  background: var(--green-100);
+  border-radius: 4px;
+}
+.chip-dim { color: var(--ink-300); font-size: 11px; margin-left: auto; }
+
+/* ============================================================
+   Cover Designer — 封面图设计助手
+   ============================================================ */
+
+.cd-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.cd-header .cd-chips { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+
+.cd-tabs {
+  display: flex; gap: 4px;
+  background: var(--pink-50);
+  padding: 4px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+.cd-tab {
+  border: none; background: transparent; cursor: pointer;
+  padding: 8px 16px; border-radius: 999px;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  color: var(--ink-500);
+  transition: all .15s;
+}
+.cd-tab:hover { color: var(--ink-700); }
+.cd-tab.active {
+  background: white; color: var(--pink-500); font-weight: 600;
+  box-shadow: 0 2px 8px rgba(255, 139, 167, 0.15);
+}
+.cd-tab-pane[hidden] { display: none; }
+
+.platform-presets {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 10px;
+}
+.platform-preset {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--ink-700);
+  transition: all .15s;
+  font-family: var(--font-sans);
+}
+.platform-preset:hover { border-color: var(--pink-300); }
+.platform-preset.active {
+  background: var(--pink-500); color: white; border-color: var(--pink-500);
+  font-weight: 600;
+}
+.platform-preset .ratio-tag {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+.style-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.style-chip {
+  padding: 4px 10px;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  border-radius: 999px;
+  font-size: 11px;
+  color: #4FAE7A;
+  cursor: pointer;
+  transition: all .1s;
+}
+.style-chip:hover { background: var(--green-100); }
+.style-chip.active { background: var(--green-500); color: white; border-color: var(--green-500); }
+
+.cd-ratio-preview {
+  background: repeating-conic-gradient(#eee 0% 25%, #f8f8f8 0% 50%) 0 0/10px 10px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-300);
+  font-size: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.cd-ratio-preview img {
+  max-width: 100%; max-height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.cd-result-actions {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px;
+}
+.cd-result-actions .btn {
+  padding: 7px 14px; font-size: 12px;
+}
+
+.prompt-copy-row {
+  display: flex; gap: 6px; align-items: flex-start;
+  background: var(--green-50);
+  border: 1px solid var(--green-200);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.prompt-copy-row .prompt-label {
+  flex-shrink: 0;
+  font-size: 11px; font-weight: 700;
+  color: #4FAE7A;
+  padding: 2px 8px;
+  background: var(--green-100);
+  border-radius: 999px;
+}
+.prompt-copy-row .prompt-text {
+  flex: 1; min-width: 0;
+  font-size: 12px; line-height: 1.6;
+  color: var(--ink-900);
+  word-break: break-word;
+}
+.prompt-copy-row .copy-tiny { flex-shrink: 0; }
+
+.cd-grid-covers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.cd-cover-card {
+  position: relative;
+  background: white; border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex; flex-direction: column; gap: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+.cd-cover-card:hover { box-shadow: var(--shadow-soft); transform: translateY(-2px); border-color: var(--pink-300); }
+.cd-cover-card img {
+  width: 100%; aspect-ratio: 3/4;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--pink-50);
+}
+.cd-cover-card .cover-title {
+  font-size: 11px; line-height: 1.3;
+  color: var(--ink-700);
+  overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.cd-cover-card .cover-use-btn {
+  position: absolute; top: 8px; right: 8px;
+  padding: 4px 10px;
+  background: var(--pink-500);
+  color: white;
+  font-size: 10px; font-weight: 600;
+  border: none; border-radius: 999px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.cd-cover-card:hover .cover-use-btn { opacity: 1; }
+
+.ref-analysis-box {
+  background: var(--pink-50);
+  border: 1px solid var(--pink-200);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-900);
+  margin-bottom: 10px;
+}
+.ref-analysis-box .ref-label {
+  font-weight: 700; color: var(--pink-500);
+  margin-bottom: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cd-output-image-wrap {
+  background: repeating-conic-gradient(#eee 0% 25%, #f8f8f8 0% 50%) 0 0/10px 10px;
+  border-radius: var(--radius-md);
+  padding: 10px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 300px;
+  margin-bottom: 10px;
+}
+.cd-output-image-wrap img {
+  max-width: 100%; max-height: 500px;
+  display: block;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+/* ============================================================
    Meme Designer — 表情包设计助手
    ============================================================ */
 

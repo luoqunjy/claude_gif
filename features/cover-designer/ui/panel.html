@@ -1,0 +1,115 @@
+<div class="panel-header">
+  <h1>🖼️ 封面图设计助手</h1>
+  <p>给想法、给参考图,或直接搜热门封面,一键出多尺寸爆款素材。</p>
+  <div class="cd-header">
+    <div class="cd-chips">
+      <div id="cd-llm-chip"></div>
+      <div id="cd-image-chip"></div>
+    </div>
+  </div>
+</div>
+
+<div class="cd-tabs" id="cd-tabs">
+  <button class="cd-tab active" data-tab="search">🔍 找封面灵感</button>
+  <button class="cd-tab" data-tab="text2img">📝 主题生封面</button>
+  <button class="cd-tab" data-tab="ref2img">🎨 参考图仿制</button>
+</div>
+
+<!-- Tab 1: 找灵感 -->
+<div class="cd-tab-pane" data-pane="search">
+  <div class="grid-2">
+    <section class="card">
+      <h3>🔍 搜热门封面</h3>
+      <label class="field-label">关键词</label>
+      <input type="text" id="cd-search-keyword" placeholder="例:咖啡测评 / 新手化妆 / PM 避坑">
+
+      <label class="field-label" style="margin-top:10px">目标平台</label>
+      <div class="platform-presets" id="cd-search-platform">
+        <button class="platform-preset active" data-platform="小红书">小红书</button>
+        <button class="platform-preset" data-platform="抖音">抖音</button>
+        <button class="platform-preset" data-platform="公众号">公众号</button>
+        <button class="platform-preset" data-platform="B站">B站</button>
+        <button class="platform-preset" data-platform="视频号">视频号</button>
+        <button class="platform-preset" data-platform="通用">通用</button>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="cd-btn-search" style="margin-top:12px">搜索爆款封面</button>
+
+      <div class="info-box">
+        💡 来源 Google Images (Serper)。点任意结果可"用作参考图"跳转到"参考图仿制"tab。
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>📦 结果</h3>
+      <div id="cd-search-output">
+        <div class="empty"><div class="empty-icon">🔍</div>输入关键词搜索爆款封面</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Tab 2: 主题生封面 -->
+<div class="cd-tab-pane" data-pane="text2img" hidden>
+  <div class="grid-2">
+    <section class="card">
+      <h3>💡 描述你想要的封面</h3>
+      <textarea id="cd-t2i-idea" rows="4" placeholder="例:一篇关于「新手 PM 如何做需求评审」的小红书笔记,想要极简风配色醒目,有"避雷"警示感"></textarea>
+
+      <label class="field-label" style="margin-top:10px">目标平台 & 比例</label>
+      <div class="platform-presets" id="cd-t2i-platform"></div>
+
+      <label class="field-label" style="margin-top:10px">视觉风格</label>
+      <div class="style-chips" id="cd-t2i-style"></div>
+
+      <button class="btn btn-primary btn-full" id="cd-btn-expand" style="margin-top:14px">① 扩写提示词</button>
+      <button class="btn btn-secondary btn-full" id="cd-btn-generate" style="margin-top:6px" disabled>② 生成封面图</button>
+
+      <div class="info-box">
+        💡 <strong>流程</strong>:LLM 先把你的想法扩写为专业提示词,你可以改,然后选图像模型生成。两步分开可控性更高。
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>🎨 生成结果</h3>
+      <div id="cd-t2i-output">
+        <div class="empty"><div class="empty-icon">✨</div>填左侧后依次点两个按钮</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Tab 3: 参考图仿制 -->
+<div class="cd-tab-pane" data-pane="ref2img" hidden>
+  <div class="grid-2">
+    <section class="card">
+      <h3>📥 上传参考封面</h3>
+      <input type="file" id="cd-ref-file" accept="image/*">
+      <div id="cd-ref-preview-wrap" style="margin-top:10px"></div>
+      <p class="hint" style="margin-top:6px">支持 拖拽 / 选择文件 / ⌘V 粘贴。参考图不会上传到任何第三方,只用作 LLM 分析(如果用到 OpenAI/通义千问等视觉模型)。</p>
+
+      <label class="field-label" style="margin-top:10px">我想怎么改?(可选)</label>
+      <textarea id="cd-ref-hint" rows="2" placeholder="例:保留极简风格,但把主题换成'夏日防晒攻略',加一个夏日元素"></textarea>
+
+      <label class="field-label" style="margin-top:10px">目标平台 & 比例</label>
+      <div class="platform-presets" id="cd-ref-platform"></div>
+
+      <label class="field-label" style="margin-top:10px">风格微调</label>
+      <div class="style-chips" id="cd-ref-style"></div>
+
+      <button class="btn btn-primary btn-full" id="cd-btn-analyze-ref" style="margin-top:14px">① 分析参考图</button>
+      <button class="btn btn-secondary btn-full" id="cd-btn-generate-ref" style="margin-top:6px" disabled>② 生成新封面</button>
+
+      <div class="info-box">
+        ⚠️ 分析参考图需要**视觉 LLM**(OpenAI / 通义千问)。当前模块模型如不支持识图,会自动尝试备选,或提示你切换。
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>🎨 生成结果</h3>
+      <div id="cd-ref-output">
+        <div class="empty"><div class="empty-icon">🎨</div>上传参考图,依次点两个按钮</div>
+      </div>
+    </section>
+  </div>
+</div>

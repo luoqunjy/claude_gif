@@ -4,6 +4,12 @@ export function mount(root) {
   const $ = (sel) => root.querySelector(sel);
   const $$ = (sel) => [...root.querySelectorAll(sel)];
 
+  // 模型选择芯片
+  if (window.App?.createModelChip) {
+    const chip = window.App.createModelChip({ featureId: 'link-analyzer', type: 'llm', onChange: () => {} });
+    $('#la-llm-chip')?.appendChild(chip);
+  }
+
   // Tabs
   const tabs = $$('.kind-tab');
   const panes = $$('.kind-pane');
@@ -32,7 +38,7 @@ export function mount(root) {
       return;
     }
 
-    const credPayload = window.App?.getCredentials?.();
+    const credPayload = window.App.getCredentialsFor('link-analyzer');
     if (!credPayload) {
       toast('请先点击左下角「🔑 API 设置」配置 API Key', 'error');
       window.App?.openSettings?.();
@@ -66,7 +72,7 @@ export function mount(root) {
     const topic = $('#la-template-topic').value.trim();
     if (!topic) { toast('请输入新主题', 'error'); return; }
 
-    const credPayload = window.App?.getCredentials?.();
+    const credPayload = window.App.getCredentialsFor('link-analyzer');
     if (!credPayload) {
       toast('请先点击左下角「🔑 API 设置」配置 API Key', 'error');
       window.App?.openSettings?.();

@@ -1393,7 +1393,7 @@ btnReupload.addEventListener('click',()=>{
 btnAiGen.addEventListener('click',async()=>{
   const desc=effectDesc.value.trim();
   if(!desc){aiStatus.textContent='请先描述你想要的效果';return;}
-  const creds=window.App?.getCredentials?.();
+  const creds=window.App.getCredentialsFor('gif-maker');
   if(!creds){aiStatus.textContent='请先在左下角 🔑 API 设置 里填入 LLM Key';window.App?.openSettings?.();return;}
   btnAiGen.disabled=true;aiStatus.textContent='AI 生成中...';aiResult.style.display='none';
   try{

@@ -76,28 +76,23 @@ export function mount(root) {
   const $ = (sel) => root.querySelector(sel);
   const $$ = (sel) => [...root.querySelectorAll(sel)];
 
-  // ---------- Model status bar ----------
+  // ---------- 模型选择芯片(替代原固定状态条) ----------
+  const llmChip = window.App.createModelChip({
+    featureId: 'meme-designer',
+    type: 'llm',
+    onChange: () => refreshModelBar()
+  });
+  $('#md-llm-chip')?.appendChild(llmChip);
+
   function refreshModelBar() {
-    const dot = $('#md-model-dot');
-    const name = $('#md-model-name');
     const visionBadge = $('#md-model-vision');
     const warn = $('#md-vision-warn');
-
-    const def = window.App?.getActiveProviderDef?.();
-    const cred = window.App?.getCredentials?.();
-    if (cred && def) {
-      dot.className = 'model-dot ok';
-      name.textContent = `当前模型: ${def.name}`;
-      visionBadge.hidden = !def.vision;
-    } else {
-      dot.className = 'model-dot warn';
-      name.textContent = '未配置 LLM API Key';
-      visionBadge.hidden = true;
-    }
-
-    // 反推 tab 的 Vision 警告
-    const hasVision = window.App?.hasVisionModel?.();
-    if (warn) warn.hidden = Boolean(hasVision);
+    const cur = window.App.getCredentialsFor('meme-designer');
+    const def = cur ? window.App.listConfiguredLlmProviders().find(p => p.id === cur.provider) : null;
+    if (visionBadge) visionBadge.hidden = !def?.vision;
+    // 反推 tab 的 Vision 警告(基于本模块的当前选择)
+    const hasVision = Boolean(def?.vision);
+    if (warn) warn.hidden = hasVision;
   }
   refreshModelBar();
   window.addEventListener('storage', refreshModelBar);
@@ -208,12 +203,14 @@ export function mount(root) {
   // ---------- Reverse ----------
   $('#md-btn-reverse').onclick = async () => {
     if (!state.image) { toast('请先上传一张图片', 'error'); return; }
-    if (!window.App?.hasVisionModel?.()) {
-      toast('当前模型不支持识图,请切换到 OpenAI / 通义千问', 'error');
+    // 反推强制要求视觉模型,自动回落到已配置的视觉模型
+    const creds = window.App.getCredentialsFor('meme-designer', { requireVision: true });
+    if (!creds) { toast('请先配置视觉模型(OpenAI / 通义千问)', 'error'); window.App?.openSettings?.('openai'); return; }
+    const def = window.App.listVisionProviders().find(p => p.id === creds.provider);
+    if (!def) {
+      toast('当前模块的模型不支持识图,请在上方芯片切换到 OpenAI / 通义千问', 'error');
       return;
     }
-    const creds = window.App?.getCredentials?.();
-    if (!creds) { toast('请先配置 LLM API Key', 'error'); window.App?.openSettings?.(); return; }
 
     const out = $('#md-rev-output');
     out.innerHTML = loadingBlock('正在反推…');
@@ -243,7 +240,7 @@ export function mount(root) {
   $('#md-btn-generate').onclick = async () => {
     const desc = $('#md-gen-desc').value.trim();
     if (!desc) { toast('请输入描述', 'error'); return; }
-    const creds = window.App?.getCredentials?.();
+    const creds = window.App.getCredentialsFor('meme-designer');
     if (!creds) { toast('请先配置 LLM API Key', 'error'); window.App?.openSettings?.(); return; }
 
     const out = $('#md-gen-output');
@@ -274,7 +271,7 @@ export function mount(root) {
   $('#md-btn-captions').onclick = async () => {
     const scene = $('#md-cap-scene').value.trim();
     if (!scene) { toast('请描述场景或情绪', 'error'); return; }
-    const creds = window.App?.getCredentials?.();
+    const creds = window.App.getCredentialsFor('meme-designer');
     if (!creds) { toast('请先配置 LLM API Key', 'error'); window.App?.openSettings?.(); return; }
 
     const out = $('#md-cap-output');
@@ -300,7 +297,7 @@ export function mount(root) {
   $('#md-btn-gallery').onclick = async () => {
     const theme = $('#md-gal-theme').value.trim();
     if (!theme) { toast('请输入主题', 'error'); return; }
-    const creds = window.App?.getCredentials?.();
+    const creds = window.App.getCredentialsFor('meme-designer');
     if (!creds) { toast('请先配置 LLM API Key', 'error'); window.App?.openSettings?.(); return; }
 
     const out = $('#md-gal-output');

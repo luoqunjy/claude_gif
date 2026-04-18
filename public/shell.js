@@ -4,13 +4,14 @@
 
 const STORAGE_KEY = 'opsAssistant.llm.v2';
 const SEARCH_STORAGE_KEY = 'opsAssistant.search.v1';
+const IMAGE_STORAGE_KEY = 'opsAssistant.imageGen.v1';
 
 // ============== Storage helpers ==============
 function loadConfig() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { active: 'kimi', providers: {} };
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { active: 'kimi', providers: {}, modulePreferences: {} };
   } catch {
-    return { active: 'kimi', providers: {} };
+    return { active: 'kimi', providers: {}, modulePreferences: {} };
   }
 }
 function saveConfig(cfg) {
@@ -26,9 +27,20 @@ function loadSearchConfig() {
 function saveSearchConfig(cfg) {
   localStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify(cfg));
 }
+function loadImageConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(IMAGE_STORAGE_KEY)) || { active: 'google-imagen', providers: {} };
+  } catch {
+    return { active: 'google-imagen', providers: {} };
+  }
+}
+function saveImageConfig(cfg) {
+  localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(cfg));
+}
 
 // ============== Globals exposed to feature panels ==============
 window.App = {
+  // —— 全局默认 (向后兼容) ——
   getActiveProvider() {
     const cfg = loadConfig();
     return cfg.active || 'kimi';
@@ -39,12 +51,60 @@ window.App = {
     return supportedProviders.find(p => p.id === id);
   },
   getCredentials() {
-    const cfg = loadConfig();
-    const active = cfg.active || 'kimi';
-    const cred = cfg.providers?.[active];
-    if (!cred?.apiKey) return null;
-    return { provider: active, credentials: cred };
+    return App.getCredentialsFor();
   },
+
+  // —— 新: 按模块/按能力选择模型 ——
+  // featureId: e.g. 'meme-designer', 'cover-designer'
+  // requireVision: 若 true,偏好视觉模型
+  getCredentialsFor(featureId, { requireVision = false } = {}) {
+    const cfg = loadConfig();
+    const prefs = cfg.modulePreferences?.[featureId] || {};
+    // 1. 模块偏好; 2. 全局 active; 3. 默认 kimi
+    let providerId = prefs.llm || cfg.active || 'kimi';
+    // 能力要求不满足时,自动降级到第一个满足能力的已配置模型
+    if (requireVision) {
+      const def = supportedProviders.find(p => p.id === providerId);
+      if (!def?.vision) {
+        const fallback = supportedProviders.find(p => p.vision && cfg.providers?.[p.id]?.apiKey);
+        if (fallback) providerId = fallback.id;
+      }
+    }
+    const cred = cfg.providers?.[providerId];
+    if (!cred?.apiKey) return null;
+    return { provider: providerId, credentials: cred };
+  },
+
+  getImageCredentialsFor(featureId) {
+    const llmCfg = loadConfig();
+    const imgCfg = loadImageConfig();
+    const prefs = llmCfg.modulePreferences?.[featureId] || {};
+    const providerId = prefs.imageGen || imgCfg.active;
+    if (!providerId) return null;
+    const cred = imgCfg.providers?.[providerId];
+    if (!cred?.apiKey) return null;
+    return { provider: providerId, credentials: cred };
+  },
+
+  setModulePreference(featureId, type, providerId) {
+    const cfg = loadConfig();
+    if (!cfg.modulePreferences) cfg.modulePreferences = {};
+    if (!cfg.modulePreferences[featureId]) cfg.modulePreferences[featureId] = {};
+    if (providerId) {
+      cfg.modulePreferences[featureId][type] = providerId;
+    } else {
+      delete cfg.modulePreferences[featureId][type];
+    }
+    saveConfig(cfg);
+    renderStatusAndSwitcher();
+  },
+
+  getModulePreference(featureId, type) {
+    const cfg = loadConfig();
+    return cfg.modulePreferences?.[featureId]?.[type] || null;
+  },
+
+  // —— 搜索 ——
   getSearchCredentials() {
     const cfg = loadSearchConfig();
     const active = cfg.active || 'serper';
@@ -52,6 +112,8 @@ window.App = {
     if (!cred?.apiKey) return null;
     return { provider: active, ...cred };
   },
+
+  // —— 能力查询 ——
   hasAnyKey() {
     const cfg = loadConfig();
     return Object.values(cfg.providers || {}).some(p => p?.apiKey);
@@ -65,6 +127,17 @@ window.App = {
   listVisionProviders() {
     return supportedProviders.filter(p => p.vision);
   },
+  listConfiguredLlmProviders() {
+    const cfg = loadConfig();
+    return supportedProviders.filter(p => cfg.providers?.[p.id]?.apiKey);
+  },
+  listConfiguredImageProviders() {
+    const cfg = loadImageConfig();
+    return supportedImageProviders.filter(p => cfg.providers?.[p.id]?.apiKey);
+  },
+  listSupportedImageProviders() {
+    return [...supportedImageProviders];
+  },
   switchProvider(providerId) {
     const cfg = loadConfig();
     if (cfg.providers?.[providerId]?.apiKey) {
@@ -75,8 +148,116 @@ window.App = {
     }
     return false;
   },
-  openSettings(tabId) { openSettingsAt(tabId); }
+  openSettings(tabId, type = 'llm') { openSettingsAt(tabId, type); },
+
+  // —— 可复用 UI: 模型选择芯片 ——
+  // 插在 feature panel 顶部让用户为本 feature 切换模型
+  createModelChip({ featureId, type = 'llm', onChange, requireCapability = null }) {
+    const chip = document.createElement('div');
+    chip.className = 'model-chip';
+    renderChip();
+
+    function renderChip() {
+      const options = type === 'imageGen'
+        ? supportedImageProviders
+        : (requireCapability === 'vision'
+            ? supportedProviders.filter(p => p.vision)
+            : supportedProviders);
+
+      const configured = options.filter(p => {
+        const cfg = type === 'imageGen' ? loadImageConfig() : loadConfig();
+        return cfg.providers?.[p.id]?.apiKey;
+      });
+
+      const curId = type === 'imageGen'
+        ? (App.getImageCredentialsFor(featureId)?.provider)
+        : (App.getCredentialsFor(featureId, { requireVision: requireCapability === 'vision' })?.provider);
+      const curDef = options.find(p => p.id === curId);
+
+      const icon = type === 'imageGen' ? '🎨' : '🤖';
+      const name = curDef?.name || '(未选择)';
+      const missing = !curId;
+
+      chip.innerHTML = `
+        <button class="chip-btn ${missing ? 'warn' : ''}">
+          <span class="chip-icon">${icon}</span>
+          <span class="chip-name">${escapeHtml(name)}</span>
+          <span class="chip-caret">▾</span>
+        </button>
+      `;
+      const btn = chip.querySelector('.chip-btn');
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        showMenu();
+      };
+    }
+
+    function showMenu() {
+      const existing = document.querySelector('.chip-menu');
+      if (existing) { existing.remove(); return; }
+      const cfg = type === 'imageGen' ? loadImageConfig() : loadConfig();
+      const options = type === 'imageGen'
+        ? supportedImageProviders
+        : (requireCapability === 'vision'
+            ? supportedProviders.filter(p => p.vision)
+            : supportedProviders);
+
+      const menu = document.createElement('div');
+      menu.className = 'chip-menu';
+      const opts = options.map(p => {
+        const hasKey = Boolean(cfg.providers?.[p.id]?.apiKey);
+        const badge = p.vision ? '<span class="chip-badge">🖼️</span>' : '';
+        return `<div class="chip-menu-item ${hasKey ? '' : 'unconfigured'}" data-id="${p.id}">
+          ${escapeHtml(p.name)}${badge}${hasKey ? '' : '<span class="chip-dim">· 未配置</span>'}
+        </div>`;
+      }).join('');
+      menu.innerHTML = `
+        <div class="chip-menu-title">${type === 'imageGen' ? '🎨 图像模型' : '🤖 文本模型'} · 仅本模块生效</div>
+        ${opts}
+        <div class="chip-menu-item chip-menu-clear" data-id="">使用全局默认</div>
+      `;
+
+      const rect = chip.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.top = `${rect.bottom + 4}px`;
+      menu.style.left = `${rect.left}px`;
+      menu.style.zIndex = '500';
+      document.body.appendChild(menu);
+
+      menu.querySelectorAll('.chip-menu-item').forEach(it => {
+        it.onclick = () => {
+          const id = it.dataset.id;
+          const hasKey = id ? Boolean(cfg.providers?.[id]?.apiKey) : true;
+          if (id && !hasKey) {
+            // 未配置,打开设置跳到对应 tab
+            openSettingsAt(id, type === 'imageGen' ? 'imageGen' : 'llm');
+            menu.remove();
+            return;
+          }
+          App.setModulePreference(featureId, type, id || null);
+          menu.remove();
+          renderChip();
+          if (onChange) onChange(id);
+        };
+      });
+
+      // 点外部关闭
+      setTimeout(() => {
+        const off = (e) => {
+          if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', off);
+          }
+        };
+        document.addEventListener('click', off);
+      }, 0);
+    }
+
+    chip.refresh = renderChip;
+    return chip;
+  }
 };
+const App = window.App;
 
 // ============== Bootstrap ==============
 const nav = document.getElementById('feature-nav');
@@ -90,6 +271,7 @@ let supportedProviders = [];
 let activeFeatureId = null;
 
 let supportedSearchProviders = [];
+let supportedImageProviders = [];
 
 async function main() {
   const [health, features] = await Promise.all([
@@ -99,6 +281,7 @@ async function main() {
 
   supportedProviders = health?.llm?.supported || [];
   supportedSearchProviders = health?.search?.supported || [];
+  supportedImageProviders = health?.imageGen?.supported || [];
 
   renderStatusAndSwitcher();
   bindSettingsModal();
@@ -220,7 +403,7 @@ function bindSettingsModal() {
   });
 }
 
-let modalActiveTabType = 'llm'; // 'llm' | 'search'
+let modalActiveTabType = 'llm'; // 'llm' | 'search' | 'imageGen'
 
 function openSettingsModal() { openSettingsAt(); }
 
@@ -231,6 +414,8 @@ function openSettingsAt(providerId, type = 'llm') {
   modalActiveTabType = type;
   if (type === 'search') {
     modalActiveTab = providerId || supportedSearchProviders[0]?.id || 'serper';
+  } else if (type === 'imageGen') {
+    modalActiveTab = providerId || supportedImageProviders[0]?.id || 'google-imagen';
   } else {
     const cfg = loadConfig();
     if (providerId && supportedProviders.find(p => p.id === providerId)) {
@@ -299,11 +484,83 @@ function renderTabs() {
     searchSection.appendChild(searchTabs);
     tabsEl.appendChild(searchSection);
   }
+
+  // Image gen section
+  if (supportedImageProviders.length > 0) {
+    const imgCfg = loadImageConfig();
+    const imgSection = document.createElement('div');
+    imgSection.className = 'provider-section';
+    imgSection.innerHTML = '<div class="provider-section-title">🎨 图像生成 <span class="section-sub">(封面图、表情包出图)</span></div>';
+    const imgTabs = document.createElement('div');
+    imgTabs.className = 'provider-tabs-row';
+    supportedImageProviders.forEach(p => {
+      const tab = document.createElement('button');
+      const isActive = modalActiveTabType === 'imageGen' && p.id === modalActiveTab;
+      tab.className = 'provider-tab' + (isActive ? ' active' : '');
+      const hasKey = Boolean(imgCfg.providers?.[p.id]?.apiKey);
+      tab.innerHTML = `${escapeHtml(p.name)}${hasKey ? ' <span class="dot-on"></span>' : ''}`;
+      tab.addEventListener('click', () => {
+        modalActiveTabType = 'imageGen';
+        modalActiveTab = p.id;
+        renderTabs();
+        renderForm();
+      });
+      imgTabs.appendChild(tab);
+    });
+    imgSection.appendChild(imgTabs);
+    tabsEl.appendChild(imgSection);
+  }
 }
 
 function renderForm() {
   if (modalActiveTabType === 'search') return renderSearchForm();
+  if (modalActiveTabType === 'imageGen') return renderImageGenForm();
   return renderLlmForm();
+}
+
+function renderImageGenForm() {
+  const def = supportedImageProviders.find(p => p.id === modalActiveTab);
+  if (!def) { formEl.innerHTML = ''; return; }
+  const cfg = loadImageConfig();
+  const cur = cfg.providers?.[modalActiveTab] || {};
+
+  formEl.innerHTML = `
+    <div class="form-row">
+      <label class="form-label">API Key <span class="req">*</span></label>
+      <div class="key-input-wrap">
+        <input type="password" id="f-apikey" placeholder="${escapeHtml(`粘贴 ${def.name} 的 API Key`)}" value="${escapeHtml(cur.apiKey || '')}">
+        <button type="button" class="key-toggle" id="f-toggle">显示</button>
+      </div>
+      <div class="form-hint">
+        没有 Key？<a href="${escapeHtml(def.signupUrl)}" target="_blank" rel="noopener">前往 ${escapeHtml(def.name)} 申请 ↗</a>
+      </div>
+      <div class="form-hint" style="margin-top:8px;padding:8px;background:var(--pink-50);border-radius:8px;line-height:1.5;">
+        💡 ${escapeHtml(def.hint || '')}<br>
+        支持尺寸: ${(def.supportedRatios || []).join(' · ')}
+      </div>
+    </div>
+
+    <details class="form-advanced">
+      <summary>高级设置</summary>
+      <div class="form-row">
+        <label class="form-label">Model</label>
+        <input type="text" id="f-model" placeholder="${escapeHtml(def.model)}" value="${escapeHtml(cur.model || '')}">
+        ${def.id === 'google-imagen' ? '<div class="form-hint">可选:imagen-3.0-generate-001(付费) / gemini-2.0-flash-preview-image-generation(免费)</div>' : ''}
+        ${def.id === 'jimeng' ? '<div class="form-hint">可选:doubao-seedream-3-0-t2i-250415 / doubao-seedream-4-0-250828(需开通)</div>' : ''}
+      </div>
+      <div class="form-row">
+        <label class="form-label">Base URL</label>
+        <input type="text" id="f-baseurl" placeholder="${escapeHtml(def.baseUrl)}" value="${escapeHtml(cur.baseUrl || '')}">
+      </div>
+    </details>
+  `;
+
+  document.getElementById('f-toggle').addEventListener('click', () => {
+    const inp = document.getElementById('f-apikey');
+    const isPwd = inp.type === 'password';
+    inp.type = isPwd ? 'text' : 'password';
+    document.getElementById('f-toggle').textContent = isPwd ? '隐藏' : '显示';
+  });
 }
 
 function renderSearchForm() {
@@ -398,6 +655,24 @@ function handleSave() {
     return;
   }
 
+  if (modalActiveTabType === 'imageGen') {
+    const baseUrl = document.getElementById('f-baseurl')?.value.trim() || '';
+    const model = document.getElementById('f-model')?.value.trim() || '';
+    const cfg = loadImageConfig();
+    if (!apiKey) {
+      delete cfg.providers[modalActiveTab];
+      toast('已清除该图像模型配置');
+    } else {
+      cfg.providers[modalActiveTab] = { apiKey, baseUrl, model };
+      cfg.active = modalActiveTab;
+      toast(`✓ ${supportedImageProviders.find(p => p.id === modalActiveTab).name} 已保存`);
+    }
+    saveImageConfig(cfg);
+    renderStatusAndSwitcher();
+    closeSettingsModal();
+    return;
+  }
+
   const baseUrl = document.getElementById('f-baseurl')?.value.trim() || '';
   const model = document.getElementById('f-model')?.value.trim() || '';
   const cfg = loadConfig();
@@ -417,17 +692,21 @@ function handleSave() {
 function handleExport() {
   const cfg = loadConfig();
   const searchCfg = loadSearchConfig();
+  const imageCfg = loadImageConfig();
   const count = Object.keys(cfg.providers || {}).filter(k => cfg.providers[k]?.apiKey).length;
   const searchCount = Object.keys(searchCfg.providers || {}).filter(k => searchCfg.providers[k]?.apiKey).length;
-  if (!count && !searchCount) { toast('当前没有任何已配置的供应商,无需导出', 'error'); return; }
+  const imageCount = Object.keys(imageCfg.providers || {}).filter(k => imageCfg.providers[k]?.apiKey).length;
+  if (!count && !searchCount && !imageCount) { toast('当前没有任何已配置的供应商,无需导出', 'error'); return; }
 
   const payload = {
     _app: 'ops-assistant',
-    _version: 'v2',
+    _version: 'v3',
     exportedAt: new Date().toISOString(),
     active: cfg.active,
     providers: cfg.providers,
-    search: searchCfg
+    modulePreferences: cfg.modulePreferences || {},
+    search: searchCfg,
+    imageGen: imageCfg
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -467,7 +746,7 @@ function handleImport() {
       }
       saveConfig(merged);
 
-      // 同步导入搜索服务配置(向后兼容旧文件)
+      // 同步导入搜索服务配置
       let searchImportedCount = 0;
       if (data.search?.providers) {
         const currentSearch = loadSearchConfig();
@@ -481,7 +760,28 @@ function handleImport() {
         saveSearchConfig(mergedSearch);
       }
 
-      if (!importedIds.length && !searchImportedCount) {
+      // 同步导入图像生成配置
+      let imageImportedCount = 0;
+      if (data.imageGen?.providers) {
+        const currentImage = loadImageConfig();
+        const iIds = Object.keys(data.imageGen.providers).filter(k => data.imageGen.providers[k]?.apiKey);
+        imageImportedCount = iIds.length;
+        const mergedImage = {
+          active: data.imageGen.active && data.imageGen.providers[data.imageGen.active]?.apiKey ? data.imageGen.active : currentImage.active,
+          providers: { ...currentImage.providers }
+        };
+        for (const id of iIds) mergedImage.providers[id] = data.imageGen.providers[id];
+        saveImageConfig(mergedImage);
+      }
+
+      // 模块偏好也合并
+      if (data.modulePreferences) {
+        const cfg2 = loadConfig();
+        cfg2.modulePreferences = { ...(cfg2.modulePreferences || {}), ...data.modulePreferences };
+        saveConfig(cfg2);
+      }
+
+      if (!importedIds.length && !searchImportedCount && !imageImportedCount) {
         throw new Error('文件里没有任何已配置的供应商');
       }
 
@@ -492,6 +792,7 @@ function handleImport() {
       const parts = [];
       if (importedIds.length) parts.push(`${importedIds.length} 个 LLM`);
       if (searchImportedCount) parts.push(`${searchImportedCount} 个搜索服务`);
+      if (imageImportedCount) parts.push(`${imageImportedCount} 个图像模型`);
       toast(`✓ 已导入 ${parts.join(' + ')}`);
     } catch (err) {
       toast('导入失败: ' + err.message, 'error');
