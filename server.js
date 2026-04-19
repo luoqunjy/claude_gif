@@ -50,7 +50,11 @@ app.use('/api', (req, res) => {
 });
 
 // 其他所有未匹配路径回落到 index.html(SPA-style,避免被 Express 默认 404 页吓到)
+// 但静态资源扩展名(png/jpg/css/js 等)必须真实存在,不能回落到 HTML,否则 <img> 会加载到 HTML 内容
 app.get('*', (req, res) => {
+  if (/\.(png|jpg|jpeg|gif|webp|svg|ico|css|js|mp4|mp3|woff2?|ttf|otf|json|map)$/i.test(req.path)) {
+    return res.status(404).send('asset not found: ' + req.path);
+  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

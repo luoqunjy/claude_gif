@@ -63,9 +63,15 @@
     state.tuanxiaoman.bubble = bubble;
 
     // 图片加载失败 → 隐藏整个 mascot 容器,不破坏页面
-    img.addEventListener('error', () => {
+    const onImgFail = () => {
+      if (container.dataset.failed) return;
       container.dataset.failed = '1';
       console.info('[mascot] tuanxiaoman 图片未找到,角色隐藏。保存 /assets/tuanxiaoman.png 即可出现。');
+    };
+    img.addEventListener('error', onImgFail, { once: true });
+    // 双重保险: 加载成功但内容异常(如被 SPA fallback 到 HTML)也算失败
+    img.addEventListener('load', () => {
+      if (img.naturalWidth === 0 || img.naturalHeight === 0) onImgFail();
     }, { once: true });
 
     // 点击互动
@@ -112,9 +118,14 @@
     container.appendChild(lulu);
 
     const img = lulu.querySelector('.mascot-img');
-    img.addEventListener('error', () => {
+    const fail = () => {
+      if (lulu.dataset.failed) return;
       lulu.dataset.failed = '1';
       console.info('[mascot] lulu 图片未找到,角色隐藏。保存 /assets/lulu.png 即可出现。');
+    };
+    img.addEventListener('error', fail, { once: true });
+    img.addEventListener('load', () => {
+      if (img.naturalWidth === 0 || img.naturalHeight === 0) fail();
     }, { once: true });
 
     // 移除进场动画类,让呼吸动画接替
