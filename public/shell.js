@@ -291,27 +291,106 @@ async function main() {
     return;
   }
 
-  features.forEach((f, i) => {
+  // 缓存 features 给 landing 页用
+  cachedFeatures = features;
+
+  // 先加"首页"nav,再加各 feature
+  const homeItem = document.createElement('div');
+  homeItem.className = 'nav-item active';
+  homeItem.dataset.homeNav = '1';
+  homeItem.innerHTML = `
+    <span class="nav-icon">🏠</span>
+    <div class="nav-meta"><div class="nav-name">首页</div></div>
+  `;
+  homeItem.addEventListener('click', () => renderLanding());
+  nav.appendChild(homeItem);
+
+  features.forEach((f) => {
     const item = document.createElement('div');
     item.className = 'nav-item';
+    item.dataset.featureId = f.id;
     item.innerHTML = `
       <span class="nav-icon">${f.icon || '🔸'}</span>
       <div class="nav-meta"><div class="nav-name">${escapeHtml(f.name)}</div></div>
     `;
     item.addEventListener('click', () => loadFeature(f, item));
     nav.appendChild(item);
-    if (i === 0) loadFeature(f, item);
   });
 
-  // 首次访问且未配置 → 自动弹出
+  // 品牌区点击也回到首页
+  document.querySelector('.brand')?.addEventListener('click', () => renderLanding());
+
+  // 默认展示首页(不再自动进第一个 feature)
+  renderLanding();
+
+  // 首次访问且未配置 → 自动弹出设置
   if (!window.App.hasAnyKey()) {
-    setTimeout(() => openSettingsModal(), 500);
+    setTimeout(() => openSettingsModal(), 800);
+  }
+}
+
+let cachedFeatures = [];
+
+function renderLanding() {
+  activeFeatureId = null;
+  [...nav.children].forEach(c => c.classList.toggle('active', !!c.dataset.homeNav));
+
+  workspace.innerHTML = `
+    <div class="landing">
+      <div class="landing-hero">
+        <div class="landing-hero-characters">
+          <img class="landing-lulu" src="/assets/lulu.png" alt="露露" draggable="false"
+               onerror="this.style.display='none'">
+        </div>
+        <div class="landing-hero-text">
+          <div class="landing-chip">运营小助手 · Ops Assistant</div>
+          <h1 class="landing-title">你好呀~ 我是<span class="hl">露露</span></h1>
+          <p class="landing-subtitle">和右下角的<span class="hl-green">团小满</span>一起,陪你做出爆款内容 ✨</p>
+          <p class="landing-hint">选一个工具开始,或者直接从左侧边栏切换</p>
+        </div>
+      </div>
+
+      <div class="landing-grid">
+        ${cachedFeatures.map(f => `
+          <button class="landing-card" data-feature-id="${escapeHtml(f.id)}">
+            <div class="landing-card-icon">${f.icon || '🔸'}</div>
+            <div class="landing-card-body">
+              <div class="landing-card-title">${escapeHtml(f.name)}</div>
+              <div class="landing-card-desc">${escapeHtml(f.description || '')}</div>
+            </div>
+            <div class="landing-card-arrow">→</div>
+          </button>
+        `).join('')}
+      </div>
+
+      <div class="landing-footer">
+        <span>🔑 用自己的 API Key 驱动</span>
+        <span>·</span>
+        <span>数据全部存在你自己的浏览器</span>
+      </div>
+    </div>
+  `;
+
+  workspace.querySelectorAll('.landing-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = card.dataset.featureId;
+      const feature = cachedFeatures.find(f => f.id === id);
+      const navItem = [...nav.children].find(c => c.dataset.featureId === id);
+      if (feature && navItem) loadFeature(feature, navItem);
+    });
+  });
+
+  // 对 landing 的 Lulu 图加载失败降级
+  const luluImg = workspace.querySelector('.landing-lulu');
+  if (luluImg) {
+    luluImg.addEventListener('load', () => {
+      if (luluImg.naturalWidth === 0) luluImg.style.display = 'none';
+    });
   }
 }
 
 async function loadFeature(feature, el) {
   if (activeFeatureId === feature.id) return;
-  const isFirstEntry = activeFeatureId === null;
   activeFeatureId = feature.id;
   [...nav.children].forEach(c => c.classList.toggle('active', c === el));
 
@@ -320,16 +399,47 @@ async function loadFeature(feature, el) {
   try {
     const html = await fetch('/' + feature.ui.panel).then(r => r.text());
     workspace.innerHTML = html;
+    // 页面转场:淡入
+    workspace.classList.remove('fade-in');
+    void workspace.offsetWidth;
+    workspace.classList.add('fade-in');
+
     const mod = await import('/' + feature.ui.script + '?v=' + Date.now());
     if (typeof mod.mount === 'function') mod.mount(workspace);
 
-    // 进入新 feature 时,团小满打个招呼(首次进入不打扰欢迎语)
-    if (!isFirstEntry) {
-      window.Mascot?.onFeatureEnter?.(feature.id);
-    }
+    // 把空态里的 emoji icon 换成露露
+    setTimeout(() => upgradeEmptyStates(workspace), 0);
+
+    // 团小满对用户打个招呼
+    window.Mascot?.onFeatureEnter?.(feature.id);
   } catch (e) {
     workspace.innerHTML = `<div class="empty-page error">❌ 加载失败: ${escapeHtml(e.message)}</div>`;
   }
+}
+
+// 扫描 .empty 里的 .empty-icon, 替换成露露露头(加载失败则保留原 emoji)
+function upgradeEmptyStates(root) {
+  root.querySelectorAll('.empty .empty-icon').forEach(icon => {
+    if (icon.dataset.upgraded) return;
+    icon.dataset.upgraded = '1';
+    const origContent = icon.innerHTML;
+    const img = document.createElement('img');
+    img.className = 'empty-lulu-img';
+    img.src = '/assets/lulu.png';
+    img.alt = '露露';
+    img.draggable = false;
+    img.addEventListener('load', () => {
+      if (img.naturalWidth === 0) {
+        // fallback 到 emoji
+        icon.innerHTML = origContent;
+      } else {
+        icon.classList.add('empty-icon-lulu');
+      }
+    });
+    img.addEventListener('error', () => { icon.innerHTML = origContent; });
+    icon.innerHTML = '';
+    icon.appendChild(img);
+  });
 }
 
 // ============== Status badge + provider switcher ==============
