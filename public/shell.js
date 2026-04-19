@@ -311,6 +311,7 @@ async function main() {
 
 async function loadFeature(feature, el) {
   if (activeFeatureId === feature.id) return;
+  const isFirstEntry = activeFeatureId === null;
   activeFeatureId = feature.id;
   [...nav.children].forEach(c => c.classList.toggle('active', c === el));
 
@@ -321,6 +322,11 @@ async function loadFeature(feature, el) {
     workspace.innerHTML = html;
     const mod = await import('/' + feature.ui.script + '?v=' + Date.now());
     if (typeof mod.mount === 'function') mod.mount(workspace);
+
+    // 进入新 feature 时,团小满打个招呼(首次进入不打扰欢迎语)
+    if (!isFirstEntry) {
+      window.Mascot?.onFeatureEnter?.(feature.id);
+    }
   } catch (e) {
     workspace.innerHTML = `<div class="empty-page error">❌ 加载失败: ${escapeHtml(e.message)}</div>`;
   }

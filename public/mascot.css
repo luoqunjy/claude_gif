@@ -1,0 +1,212 @@
+/* ============================================================
+   IP 角色(mascot)系统样式
+   - 团小满: 固定右下角常驻,呼吸/眨眼/挥手/点击弹跳/鼠标追踪
+   - 露露: 空态/引导时出现,带对话气泡
+   ============================================================ */
+
+.mascot {
+  position: fixed;
+  z-index: 100;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mascot-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+  transition: transform .2s cubic-bezier(.33,1.5,.68,1);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.12));
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* ============== 团小满: 常驻右下角 ============== */
+.mascot-tuanxiaoman {
+  bottom: 22px;
+  right: 22px;
+  width: 96px;
+  height: 96px;
+  pointer-events: auto;
+}
+.mascot-tuanxiaoman .mascot-img {
+  animation: mascotBreathe 3.8s ease-in-out infinite;
+}
+@keyframes mascotBreathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-5px) scale(1.03); }
+}
+
+/* hover 微挥手 */
+.mascot-tuanxiaoman:hover .mascot-img {
+  animation: mascotWave 1.2s ease-in-out infinite;
+}
+@keyframes mascotWave {
+  0%, 100% { transform: rotate(-3deg) translateY(-3px) scale(1.04); }
+  50% { transform: rotate(3deg) translateY(-3px) scale(1.04); }
+}
+
+/* 点击弹跳 */
+.mascot-tuanxiaoman.bounce .mascot-img {
+  animation: mascotBounce .55s cubic-bezier(.33,1.5,.68,1);
+}
+@keyframes mascotBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.18) translateY(-10px); }
+  60% { transform: scale(0.92) translateY(0); }
+  100% { transform: scale(1); }
+}
+
+/* 生成中 — 团小满缓慢转动施法 */
+.mascot-tuanxiaoman.casting .mascot-img {
+  animation: mascotCast 1.4s linear infinite;
+}
+@keyframes mascotCast {
+  0% { transform: rotate(-4deg) translateY(-2px); }
+  50% { transform: rotate(4deg) translateY(-8px); }
+  100% { transform: rotate(-4deg) translateY(-2px); }
+}
+
+/* 庆祝 — 成功反馈 */
+.mascot-tuanxiaoman.celebrate .mascot-img {
+  animation: mascotCelebrate 0.8s ease-out;
+}
+@keyframes mascotCelebrate {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2) rotate(-8deg); }
+  50% { transform: scale(1.3) rotate(8deg) translateY(-15px); }
+  75% { transform: scale(1.15) rotate(-4deg) translateY(-5px); }
+  100% { transform: scale(1); }
+}
+
+/* 叹气 — 错误反馈 */
+.mascot-tuanxiaoman.sad .mascot-img {
+  animation: mascotSad 1.2s ease-in-out;
+}
+@keyframes mascotSad {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.92) translateY(4px) rotate(-3deg); filter: drop-shadow(0 2px 6px rgba(0,0,0,0.1)) saturate(0.7); }
+  100% { transform: scale(1); }
+}
+
+/* ============== 露露: 内联,出现在 feature 引导处 ============== */
+.mascot-lulu {
+  position: relative;
+  display: inline-block;
+  width: 80px;
+  height: 120px;
+  vertical-align: bottom;
+}
+.mascot-lulu .mascot-img {
+  animation: mascotBreathe 4.2s ease-in-out infinite;
+  cursor: default;
+}
+.mascot-lulu.enter .mascot-img {
+  animation: luluSlideIn .6s cubic-bezier(.33,1.5,.68,1);
+}
+@keyframes luluSlideIn {
+  0% { transform: translateX(-40px) scale(0.6); opacity: 0; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+/* ============== 对话气泡 ============== */
+.mascot-bubble {
+  position: absolute;
+  background: white;
+  padding: 10px 14px;
+  border-radius: 16px;
+  border: 2px solid var(--pink-400, #FFB3C6);
+  font-size: 13px;
+  color: var(--ink-900, #2D2A32);
+  max-width: 240px;
+  min-width: 60px;
+  box-shadow: 0 6px 24px rgba(255, 139, 167, 0.22);
+  text-align: center;
+  line-height: 1.5;
+  font-weight: 500;
+  white-space: normal;
+  pointer-events: none;
+}
+
+/* 团小满的气泡:右下角,所以气泡在上方,尾巴朝下 */
+.mascot-tuanxiaoman .mascot-bubble {
+  bottom: calc(100% + 12px);
+  right: 0;
+}
+.mascot-tuanxiaoman .mascot-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 30px;
+  border: 8px solid transparent;
+  border-top-color: var(--pink-400, #FFB3C6);
+}
+.mascot-tuanxiaoman .mascot-bubble::before {
+  content: '';
+  position: absolute;
+  top: calc(100% - 2px);
+  right: 32px;
+  border: 6px solid transparent;
+  border-top-color: white;
+  z-index: 1;
+}
+
+/* 露露的气泡:右侧 */
+.mascot-lulu .mascot-bubble {
+  left: calc(100% + 12px);
+  top: 10px;
+}
+.mascot-lulu .mascot-bubble::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  right: 100%;
+  border: 8px solid transparent;
+  border-right-color: var(--pink-400, #FFB3C6);
+}
+.mascot-lulu .mascot-bubble::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  right: calc(100% - 2px);
+  border: 6px solid transparent;
+  border-right-color: white;
+  z-index: 1;
+}
+
+.mascot-bubble.fade-in {
+  animation: bubbleIn .35s cubic-bezier(.33,1.5,.68,1);
+}
+.mascot-bubble.fade-out {
+  animation: bubbleOut .25s ease-in forwards;
+}
+@keyframes bubbleIn {
+  0% { opacity: 0; transform: translateY(10px) scale(0.85); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bubbleOut {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.92); }
+}
+
+/* ============== 图失败时不破坏布局 ============== */
+.mascot-img[data-failed="1"] {
+  display: none;
+}
+.mascot[data-failed="1"] {
+  display: none;
+}
+
+/* ============== 移动端:团小满缩小 ============== */
+@media (max-width: 720px) {
+  .mascot-tuanxiaoman {
+    width: 70px;
+    height: 70px;
+    bottom: 12px;
+    right: 12px;
+  }
+  .mascot-bubble { font-size: 12px; max-width: 180px; }
+}
