@@ -1,0 +1,464 @@
+<style>
+/* ============================================================
+   爆款表情工厂 · 主面板样式
+   3 工作台 + 2 抽屉(模板管理器 / 角色库) + 覆盖模态框
+   ============================================================ */
+
+.es-shell {
+  display: flex; flex-direction: column;
+  height: calc(100vh - 64px); min-height: 560px;
+  gap: 10px;
+}
+
+/* -- Masthead + Tab strip -- */
+.es-mast {
+  display: flex; align-items: center; gap: 14px;
+  padding: 2px;
+  flex-wrap: wrap;
+}
+.es-mast .es-t { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
+.es-mast .es-dek { font-size: 11.5px; color: var(--ink-500); font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; }
+.es-mast .es-sp { flex: 1; }
+.es-mast .es-tools { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+
+.es-tabs {
+  display: flex; gap: 2px; padding: 4px;
+  background: var(--pink-50); border-radius: 12px;
+  border: 1px solid var(--pink-100);
+  flex-shrink: 0;
+}
+.es-tab {
+  padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: var(--ink-500);
+  transition: all .15s;
+}
+.es-tab:hover { color: var(--ink-900); }
+.es-tab.active { background: #fff; color: #d6336c; box-shadow: 0 2px 8px rgba(214, 51, 108, 0.12); }
+.es-tab .soon { font-size: 10px; color: var(--ink-300); margin-left: 4px; }
+
+/* -- Work area (fills remaining height) -- */
+.es-work { flex: 1; min-height: 0; display: flex; gap: 10px; }
+.es-pane-l {
+  width: 360px; flex-shrink: 0;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px 16px; overflow-y: auto;
+  box-shadow: var(--shadow-soft);
+}
+.es-pane-r {
+  flex: 1; min-width: 0;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+  display: flex; flex-direction: column;
+}
+
+.es-pane-body { flex: 1; overflow-y: auto; padding: 14px; }
+
+/* -- Form elements -- */
+.es-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.es-field > label {
+  font-size: 10.5px; font-weight: 800; color: #d6336c;
+  letter-spacing: 0.6px; text-transform: uppercase; padding-left: 2px;
+}
+.es-field > label .opt { color: var(--ink-300); font-weight: 500; }
+.es-field input, .es-field textarea, .es-field select {
+  width: 100%; border: 1px solid var(--pink-200); background: #fff;
+  border-radius: 8px; padding: 8px 10px; font-size: 13.5px;
+  font-family: inherit; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.es-field input:focus, .es-field textarea:focus, .es-field select:focus {
+  border-color: var(--pink-400); box-shadow: 0 0 0 3px rgba(255, 139, 167, 0.18);
+}
+.es-field textarea { resize: vertical; line-height: 1.5; min-height: 72px; }
+
+.es-tpl-row { display: flex; gap: 6px; align-items: center; }
+.es-tpl-row select { flex: 1; }
+.es-tpl-row button { flex-shrink: 0; }
+
+.es-count-row { display: flex; align-items: center; gap: 10px; }
+.es-count-row input[type=range] { flex: 1; }
+.es-count-row .val {
+  min-width: 36px; text-align: center; font-weight: 800; color: #d6336c;
+  background: var(--pink-50); border-radius: 6px; padding: 3px 6px; font-size: 13px;
+}
+
+.es-ratio-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.es-ratio-chip {
+  padding: 4px 10px; border: 1px solid var(--pink-200); background: #fff;
+  border-radius: 6px; cursor: pointer; font-size: 11.5px; color: var(--ink-700);
+  transition: all .15s; font-weight: 500;
+}
+.es-ratio-chip:hover { background: var(--pink-50); }
+.es-ratio-chip.active { background: #d6336c; color: #fff; border-color: #d6336c; }
+
+/* -- Buttons -- */
+.es-btn {
+  border: 1px solid var(--pink-200); background: #fff; color: #d6336c;
+  padding: 8px 14px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 600; transition: all .15s;
+  font-family: inherit;
+}
+.es-btn:hover { background: var(--pink-50); }
+.es-btn.sm { padding: 4px 10px; font-size: 11.5px; }
+.es-btn.primary {
+  background: linear-gradient(135deg, #ff4785 0%, #d6336c 100%);
+  color: #fff; border: none; font-weight: 700;
+  box-shadow: 0 4px 16px rgba(214, 51, 108, 0.25);
+}
+.es-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(214, 51, 108, 0.32); }
+.es-btn.primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+.es-btn.full { width: 100%; }
+
+/* -- Variants (prompt cards) -- */
+.es-output { display: flex; flex-direction: column; gap: 16px; }
+.es-section-title {
+  font-size: 11.5px; font-weight: 800; color: #d6336c;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  margin: 0 0 8px; display: flex; align-items: center; gap: 6px;
+}
+.es-section-title .count {
+  background: var(--pink-100); color: #d6336c; font-size: 11px;
+  padding: 1px 8px; border-radius: 999px; font-weight: 700;
+}
+.es-section-title .spacer { flex: 1; }
+
+.es-var-list { display: flex; flex-direction: column; gap: 8px; }
+.es-var {
+  background: var(--pink-50); border: 1px solid var(--pink-100);
+  border-radius: 10px; padding: 10px 12px;
+  font-size: 12px; line-height: 1.6;
+}
+.es-var .vh {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  font-size: 11px; color: var(--ink-500);
+}
+.es-var .vh .vn { background: #d6336c; color: #fff; padding: 1px 7px; border-radius: 4px; font-weight: 700; }
+.es-var .vh .vc { font-style: italic; }
+.es-var .vp {
+  background: #fff; border: 1px solid var(--pink-100); border-radius: 6px;
+  padding: 6px 8px; font-size: 12px; color: var(--ink-800);
+  white-space: pre-wrap; word-break: break-word;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.es-var .va { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+
+/* -- Image grid -- */
+.es-imgs {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.es-img {
+  position: relative; aspect-ratio: 1/1; border-radius: 10px;
+  background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px;
+  overflow: hidden; border: 1px solid var(--line);
+  transition: transform .15s, box-shadow .15s;
+}
+.es-img:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+.es-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.es-img-actions {
+  position: absolute; top: 6px; right: 6px;
+  display: flex; gap: 4px;
+  opacity: 0; transition: opacity .15s;
+}
+.es-img:hover .es-img-actions { opacity: 1; }
+.es-img-btn {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  background: rgba(0,0,0,0.7); color: #fff; cursor: pointer;
+  font-size: 13px; display: inline-flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.es-img-btn:hover { background: rgba(0,0,0,0.9); }
+.es-img-fail {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: #c92a2a; font-size: 11px; padding: 12px; text-align: center;
+  background: #fff5f5;
+}
+.es-img-loading {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.8); color: #d6336c;
+  font-size: 12px; gap: 6px;
+}
+
+/* -- Empty state -- */
+.es-empty {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  color: var(--ink-500); padding: 40px 20px; line-height: 1.8;
+}
+.es-empty .g { font-size: 48px; opacity: 0.45; margin-bottom: 12px; }
+.es-empty .tt { font-size: 14px; color: var(--ink-700); font-weight: 600; margin-bottom: 4px; }
+.es-empty .st { font-size: 12.5px; }
+
+/* -- Tab placeholder (P1/P2 coming soon) -- */
+.es-coming {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  padding: 40px 20px; line-height: 1.8; gap: 10px;
+}
+.es-coming .g { font-size: 56px; opacity: 0.45; }
+.es-coming .tt { font-size: 18px; font-weight: 700; color: var(--ink-700); }
+.es-coming .st { font-size: 13px; color: var(--ink-500); max-width: 420px; }
+.es-coming .tag {
+  background: var(--pink-100); color: #d6336c;
+  padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+}
+
+/* -- Modal (Template manager / Reverse) -- */
+.es-modal { position: fixed; inset: 0; z-index: 1000; display: none; }
+.es-modal.on { display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+.es-modal-bd { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(2px); }
+.es-modal-card {
+  position: relative; background: #fff; border-radius: 16px;
+  width: 840px; max-width: 100%; max-height: 90vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+}
+.es-modal-head {
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, #fff, #fafafa);
+}
+.es-modal-head h2 { margin: 0; font-size: 17px; font-weight: 800; }
+.es-modal-head .sp { flex: 1; }
+.es-modal-close {
+  width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent;
+  cursor: pointer; font-size: 20px; color: var(--ink-500);
+}
+.es-modal-close:hover { background: var(--pink-50); color: #d6336c; }
+.es-modal-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.es-modal-foot {
+  padding: 12px 18px; border-top: 1px solid var(--line);
+  display: flex; gap: 8px; align-items: center;
+  background: #fafafa;
+}
+
+/* Template manager */
+.es-tpl-layout { display: grid; grid-template-columns: 220px 1fr; gap: 14px; min-height: 420px; }
+.es-tpl-list {
+  border: 1px solid var(--line); border-radius: 10px;
+  max-height: 500px; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.es-tpl-item {
+  padding: 10px 12px; cursor: pointer;
+  border-bottom: 1px solid var(--line); font-size: 12.5px;
+  display: flex; flex-direction: column; gap: 2px;
+  transition: background .15s;
+}
+.es-tpl-item:last-child { border-bottom: none; }
+.es-tpl-item:hover { background: var(--pink-50); }
+.es-tpl-item.active { background: var(--pink-100); color: #d6336c; font-weight: 600; }
+.es-tpl-item .tn { font-weight: 600; color: var(--ink-900); font-size: 13px; }
+.es-tpl-item.active .tn { color: #d6336c; }
+.es-tpl-item .td { font-size: 11px; color: var(--ink-500); }
+
+.es-tpl-edit { display: flex; flex-direction: column; gap: 10px; }
+.es-tpl-edit .meta { display: grid; grid-template-columns: 1fr 120px; gap: 8px; }
+.es-fields-list { display: flex; flex-direction: column; gap: 6px; }
+.es-fld {
+  background: var(--pink-50); border: 1px solid var(--pink-100);
+  border-radius: 8px; padding: 8px 10px;
+  display: grid; grid-template-columns: 100px 1fr 28px; gap: 8px; align-items: start;
+  font-size: 12px;
+}
+.es-fld input, .es-fld textarea {
+  border: 1px solid var(--pink-200); border-radius: 6px; padding: 4px 8px;
+  font-size: 12px; font-family: inherit; outline: none; background: #fff; width: 100%;
+}
+.es-fld textarea { resize: vertical; min-height: 26px; line-height: 1.4; }
+.es-fld .fc { display: flex; flex-direction: column; gap: 4px; }
+.es-fld .ffk { font-weight: 700; color: #d6336c; }
+.es-fld-del {
+  border: none; background: #fff; color: #c92a2a; cursor: pointer;
+  width: 28px; height: 28px; border-radius: 6px; font-size: 14px;
+}
+.es-fld-del:hover { background: #ffeaea; }
+.es-fld-add {
+  border: 1.5px dashed var(--pink-300); background: transparent;
+  padding: 8px; border-radius: 8px; cursor: pointer;
+  color: #d6336c; font-weight: 600; font-size: 12.5px; width: 100%;
+}
+.es-fld-add:hover { background: var(--pink-50); }
+
+/* Reverse modal */
+.es-rev-drop {
+  border: 2px dashed var(--pink-300); border-radius: 12px;
+  padding: 24px; text-align: center; cursor: pointer;
+  background: var(--pink-50); transition: background .15s;
+}
+.es-rev-drop:hover { background: var(--pink-100); }
+.es-rev-drop.has { padding: 8px; }
+.es-rev-drop img { max-width: 100%; max-height: 260px; border-radius: 8px; }
+
+/* Error block */
+.es-err {
+  background: #fff5f5; border: 1px solid #ffc9c9; color: #c92a2a;
+  padding: 10px 12px; border-radius: 8px; font-size: 12.5px; line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .es-shell { height: auto; min-height: 0; }
+  .es-work { flex-direction: column; }
+  .es-pane-l { width: 100%; }
+  .es-pane-r { min-height: 480px; }
+}
+</style>
+
+<div class="es-shell">
+
+  <header class="es-mast">
+    <h1 class="es-t">🏭 爆款表情工厂</h1>
+    <span class="es-dek">结构化 · 批量 · 抠图 · 动画化 一站式</span>
+    <span class="es-sp"></span>
+    <div class="es-tools">
+      <button class="es-btn sm" id="es-btn-templates">📐 模板</button>
+      <button class="es-btn sm" id="es-btn-reverse">🔍 反推</button>
+      <span style="color:var(--ink-500);font-size:11.5px;margin-left:6px">文本</span>
+      <div id="es-llm-chip"></div>
+      <span style="color:var(--ink-500);font-size:11.5px">图像</span>
+      <div id="es-img-chip"></div>
+      <button class="es-btn sm" id="es-btn-settings">🔑</button>
+    </div>
+  </header>
+
+  <div class="es-tabs" id="es-tabs">
+    <div class="es-tab active" data-tab="text">🎭 文字表情</div>
+    <div class="es-tab" data-tab="character">🎪 角色表情<span class="soon">· P1</span></div>
+    <div class="es-tab" data-tab="gif">🎬 动画化 GIF<span class="soon">· P2</span></div>
+  </div>
+
+  <div class="es-work">
+    <!-- ========== LEFT: Input ========== -->
+    <aside class="es-pane-l">
+      <div data-tab-body="text">
+        <div class="es-field">
+          <label>① 描述你想要的表情 <span style="color:#e11d48">*</span></label>
+          <textarea id="es-desc" rows="4" placeholder="例:周一不想上班的打工人,摆烂瘫在椅子上,旁边一堆待办爆炸
+
+越具体效果越好:情绪 + 动作 + 场景 + 风格"></textarea>
+        </div>
+
+        <div class="es-field">
+          <label>② 选一个结构模板 <span class="opt">· 决定 AI 往哪些字段填词</span></label>
+          <div class="es-tpl-row">
+            <select id="es-tpl-select"></select>
+            <button class="es-btn sm" id="es-btn-edit-tpl">编辑</button>
+          </div>
+        </div>
+
+        <div class="es-field">
+          <label>③ 批量张数 · <span id="es-count-val" style="color:#d6336c;font-weight:700">3</span> 张</label>
+          <div class="es-count-row">
+            <input type="range" id="es-count" min="1" max="10" value="3">
+            <span class="val" id="es-count-display">3</span>
+          </div>
+          <div style="font-size:11px;color:var(--ink-500);margin-top:3px">AI 会生成 N 个差异化变体,分别出图</div>
+        </div>
+
+        <div class="es-field">
+          <label>④ 画面比例</label>
+          <div class="es-ratio-row" id="es-ratio">
+            <span class="es-ratio-chip active" data-r="1:1">1:1 方图</span>
+            <span class="es-ratio-chip" data-r="3:4">3:4</span>
+            <span class="es-ratio-chip" data-r="9:16">9:16 竖</span>
+            <span class="es-ratio-chip" data-r="16:9">16:9 横</span>
+            <span class="es-ratio-chip" data-r="4:3">4:3</span>
+          </div>
+        </div>
+
+        <button class="es-btn primary full" id="es-btn-run" style="margin-top:8px">🚀 填词 + 生图</button>
+        <button class="es-btn full" id="es-btn-fillonly" style="margin-top:6px">✍ 只填词不生图(省 token)</button>
+
+        <div style="font-size:11px;color:var(--ink-500);margin-top:14px;line-height:1.6">
+          💡 默认文本模型填词,图像模型 <strong>即梦 Seedream</strong> 出图(可在右上角切)。生成后鼠标悬停图片可下载。
+        </div>
+      </div>
+
+      <div data-tab-body="character" hidden>
+        <div class="es-coming">
+          <div class="g">🎪</div>
+          <div class="tt">角色表情包</div>
+          <div class="st">P1 即将上线:角色库 + 图生图(Seedream i2i),保持 Q 版角色一致性,一次批产一整套角色表情</div>
+          <span class="tag">P1 规划中</span>
+        </div>
+      </div>
+
+      <div data-tab-body="gif" hidden>
+        <div class="es-coming">
+          <div class="g">🎬</div>
+          <div class="tt">动画化 GIF</div>
+          <div class="st">P2 即将上线:从文字/角色表情接收图片 → LLM 反推情绪 → 推荐 3 个适配动效 + 3 条 AI 建议 prompt → Canvas 导出 GIF</div>
+          <span class="tag">P2 规划中</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ========== RIGHT: Output ========== -->
+    <section class="es-pane-r">
+      <div class="es-pane-body" id="es-output">
+        <div class="es-empty">
+          <div class="g">🏭</div>
+          <div class="tt">左边填好,一键出一套爆款表情</div>
+          <div class="st">AI 按你选的结构模板填词 → 产出 N 个差异化变体 → 批量调 Seedream 生图</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ========== Template Manager Modal ========== -->
+<div class="es-modal" id="es-modal-tpl">
+  <div class="es-modal-bd" data-close-tpl></div>
+  <div class="es-modal-card">
+    <div class="es-modal-head">
+      <h2>📐 结构模板管理器</h2>
+      <span class="sp"></span>
+      <button class="es-btn sm" id="es-tpl-new">➕ 新建</button>
+      <button class="es-btn sm" id="es-tpl-import">📂 导入JSON</button>
+      <button class="es-btn sm" id="es-tpl-export">💾 导出全部</button>
+      <button class="es-modal-close" data-close-tpl>×</button>
+    </div>
+    <div class="es-modal-body">
+      <div class="es-tpl-layout">
+        <div class="es-tpl-list" id="es-tpl-listbox"></div>
+        <div class="es-tpl-edit" id="es-tpl-editbox">
+          <div style="color:var(--ink-500);text-align:center;padding:40px 20px">从左边选一个模板开始编辑</div>
+        </div>
+      </div>
+    </div>
+    <div class="es-modal-foot">
+      <button class="es-btn sm" id="es-tpl-reseed">🔄 重置预置模板</button>
+      <span class="sp" style="flex:1"></span>
+      <button class="es-btn primary sm" data-close-tpl>完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Reverse Modal (优化版反推) ========== -->
+<div class="es-modal" id="es-modal-rev">
+  <div class="es-modal-bd" data-close-rev></div>
+  <div class="es-modal-card" style="width:680px">
+    <div class="es-modal-head">
+      <h2>🔍 图片反推 · 按模板填字段</h2>
+      <span class="sp"></span>
+      <button class="es-modal-close" data-close-rev>×</button>
+    </div>
+    <div class="es-modal-body">
+      <div class="es-field">
+        <label>① 上传一张图(表情包/角色/参考图)</label>
+        <div class="es-rev-drop" id="es-rev-drop">
+          <input type="file" id="es-rev-file" accept="image/*" hidden>
+          <div id="es-rev-hint">点击选择图片 / 拖拽 / ⌘V 粘贴</div>
+        </div>
+      </div>
+      <div class="es-field">
+        <label>② 反推到哪个模板的字段结构</label>
+        <select id="es-rev-tpl"></select>
+      </div>
+      <button class="es-btn primary full" id="es-rev-run">🔍 开始反推</button>
+      <div id="es-rev-out" style="margin-top:14px"></div>
+    </div>
+  </div>
+</div>
