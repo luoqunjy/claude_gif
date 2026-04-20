@@ -1,0 +1,115 @@
+<style>
+.xhs-hero { background:linear-gradient(135deg,#fff0f5 0%,#fff 70%); border:1.5px solid #ffd1e0; border-radius:14px; padding:16px 18px; margin-bottom:14px; }
+.xhs-hero .xhs-flow { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:var(--ink-500); flex-wrap:wrap; }
+.xhs-hero .fstep { background:#fff; border:1px solid #ffc9de; padding:3px 9px; border-radius:999px; color:#d6336c; font-weight:600; }
+.xhs-hero .farrow { color:#ffc9de; font-weight:700; }
+
+.xhs-input-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+.xhs-stage { border:1px solid var(--ink-100); border-radius:12px; margin-bottom:14px; overflow:hidden; background:#fff; }
+.xhs-stage.pending { opacity:.45; }
+.xhs-stage-head { display:flex; align-items:center; gap:10px; padding:12px 14px; background:#fafafa; border-bottom:1px solid var(--ink-100); font-weight:600; font-size:14px; }
+.xhs-stage-head .snum { background:#ffe3ee; color:#d6336c; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+.xhs-stage-head.done .snum { background:#d4f4dd; color:#1f9d55; }
+.xhs-stage-head.run .snum { background:#fff3bf; color:#b77b00; animation:pulse 1.2s infinite; }
+.xhs-stage-head .sstatus { font-size:11px; color:var(--ink-500); font-weight:400; margin-left:auto; }
+.xhs-stage-body { padding:12px 14px; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.xhs-bm-list { display:flex; flex-direction:column; gap:8px; max-height:280px; overflow:auto; }
+.xhs-bm-item { display:flex; gap:10px; padding:8px 10px; background:#fafafa; border-radius:8px; font-size:13px; line-height:1.5; border:1px solid #f0f0f0; }
+.xhs-bm-item .bidx { color:#d6336c; font-weight:700; flex-shrink:0; width:20px; }
+.xhs-bm-item .btitle { color:var(--ink-900); font-weight:600; }
+.xhs-bm-item .bsnip { color:var(--ink-500); font-size:12px; margin-top:2px; line-height:1.5; }
+.xhs-bm-item .bsrc { color:#999; font-size:11px; margin-top:3px; }
+.xhs-bm-item a { color:#d6336c; text-decoration:none; }
+.xhs-bm-item a:hover { text-decoration:underline; }
+
+.xhs-analysis-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:10px; }
+.xhs-analysis-card { background:linear-gradient(135deg,#fff8fb,#fff); border:1px solid #ffe3ee; border-radius:10px; padding:10px 12px; font-size:12.5px; line-height:1.6; }
+.xhs-analysis-card .acap { font-size:11px; color:#d6336c; font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:4px; }
+.xhs-analysis-card ul { margin:0; padding-left:16px; }
+.xhs-analysis-card li { margin-bottom:2px; color:var(--ink-800); }
+.xhs-analysis-takeaway { grid-column:1/-1; background:#fff0f5; border:1.5px dashed #ffc9de; padding:12px; border-radius:10px; color:#d6336c; font-weight:600; font-size:13px; line-height:1.6; }
+
+.xhs-note-title { background:linear-gradient(135deg,#ff4785,#d6336c); color:#fff; padding:16px 18px; border-radius:12px; font-size:18px; font-weight:700; line-height:1.5; letter-spacing:.3px; box-shadow:0 6px 20px rgba(214,51,108,.18); }
+.xhs-note-meta { font-size:11px; color:var(--ink-500); margin-top:6px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.xhs-note-content { background:#fafafa; border:1px solid var(--ink-100); border-radius:10px; padding:14px 16px; white-space:pre-wrap; font-size:14px; line-height:1.85; color:var(--ink-900); margin-top:10px; }
+.xhs-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.xhs-tag { background:#fff0f5; color:#d6336c; border-radius:999px; padding:4px 10px; font-size:12px; border:1px solid #ffc9de; }
+.xhs-meta-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+.xhs-meta-card { background:#fafafa; border:1px solid var(--ink-100); border-radius:10px; padding:10px 12px; font-size:13px; }
+.xhs-meta-card .mlabel { font-size:11px; color:var(--ink-500); margin-bottom:3px; }
+.xhs-cover-prompt { background:#0f172a; color:#e2e8f0; border-radius:10px; padding:12px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; line-height:1.6; white-space:pre-wrap; word-break:break-word; margin-top:10px; }
+.xhs-copy-row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.xhs-warn-box { background:#fff4e5; border:1px solid #ffd08a; color:#8a5a00; padding:10px 12px; border-radius:8px; font-size:12.5px; margin-bottom:10px; line-height:1.6; }
+.xhs-warn-box button { margin-left:8px; }
+.xhs-selfcheck { display:flex; gap:12px; flex-wrap:wrap; margin-top:6px; font-size:11px; color:var(--ink-500); }
+.xhs-selfcheck .sc-ok { color:#1f9d55; }
+.xhs-selfcheck .sc-warn { color:#c85000; }
+</style>
+
+<div class="panel-header">
+  <h1>📕 小红书爆款文案生成器</h1>
+  <p>RAG 模式 · 先搜真实对标笔记 → 拆解爆款套路 → 继承写作,产出贴近平台算法的高质量笔记</p>
+
+  <div class="model-bar">
+    <div class="model-info">
+      <span style="font-size:12px;color:var(--ink-500);">本模块模型:</span>
+      <div id="xhs-llm-chip"></div>
+    </div>
+    <div class="model-actions">
+      <button class="btn btn-ghost btn-sm" id="xhs-btn-settings">🔑 API 设置</button>
+    </div>
+  </div>
+</div>
+
+<div class="xhs-hero">
+  <div style="font-size:14px; font-weight:600; color:#d6336c;">🎯 让 AI 先学会爆款怎么写,再给你写</div>
+  <div class="xhs-flow">
+    <span class="fstep">① 搜 10+ 条真实对标</span>
+    <span class="farrow">→</span>
+    <span class="fstep">② 拆解爆款套路</span>
+    <span class="farrow">→</span>
+    <span class="fstep">③ 继承套路写笔记</span>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- INPUT -->
+  <section class="card">
+    <h3>📝 只填两个就够</h3>
+
+    <div class="xhs-warn-box" id="xhs-no-serper" hidden>
+      ⚠️ 还没配 Serper Key,无法搜真实对标笔记 —— 这个工具的核心就是 RAG,没它就退化成普通模板。
+      <button class="btn btn-primary btn-sm" id="xhs-btn-config-serper">去配置 Serper</button>
+    </div>
+
+    <div class="form-row">
+      <label class="field-label">主题关键词 <span style="color:#e11d48">*</span></label>
+      <input type="text" id="xhs-keyword" placeholder="越具体越好 · 例:美白精华 / 应届生搬家 / 雅思口语 7 天">
+      <div class="hint" style="font-size:11px;color:var(--ink-500);margin-top:4px">建议 4-10 字,有场景/人群/时间限定,搜出来的对标更精准</div>
+    </div>
+
+    <div class="form-row">
+      <label class="field-label">你的具体角度(可选)</label>
+      <textarea id="xhs-intent" rows="4" placeholder="越详细效果越好,比如:
+· 我是学生党,预算 200 以内
+· 想写踩雷角度,不是种草
+· 主打"7 天见效"这个点
+· 要带"新手向"人群标签"></textarea>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="xhs-btn-run">🚀 找对标 · 拆套路 · 写笔记</button>
+
+    <div class="info-box" style="margin-top:12px">
+      💡 一次点击走完 3 步,总耗时约 25-45 秒(拆解和写作比较费 token)。看到中间结果后,可以单独 <strong>换一篇</strong> 不重新搜。
+    </div>
+  </section>
+
+  <!-- OUTPUT (3-STAGE) -->
+  <section class="card" style="padding:14px">
+    <div id="xhs-output">
+      <div class="empty"><div class="empty-icon">📕</div>左边填好关键词,一键跑完 RAG 全流程</div>
+    </div>
+  </section>
+</div>

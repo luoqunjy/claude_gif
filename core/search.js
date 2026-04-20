@@ -16,6 +16,40 @@ export function supportedSearchProviders() {
   return Object.entries(PROVIDERS).map(([id, def]) => ({ id, ...def }));
 }
 
+export async function searchWeb({ query, credentials, num = 15, gl = 'cn', hl = 'zh-cn' }) {
+  if (!query?.trim()) throw new Error('搜索关键词不能为空');
+  const providerId = credentials?.provider || 'serper';
+  if (providerId !== 'serper') throw new Error(`暂未实现: ${providerId}`);
+  if (!credentials?.apiKey?.trim()) {
+    throw new Error('请先在「🔑 API 设置 → 🌐 搜索服务」里填入 Serper 的 API Key');
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch('https://google.serper.dev/search', {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': credentials.apiKey.trim(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ q: query.trim(), num, gl, hl }),
+      signal: controller.signal
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`[Serper] ${res.status}: ${text.slice(0, 300)}`);
+    const data = JSON.parse(text);
+    const results = (data.organic || []).slice(0, num).map(it => ({
+      title: it.title || '',
+      snippet: it.snippet || '',
+      link: it.link || '',
+      source: it.source || (it.link || '').replace(/^https?:\/\//, '').split('/')[0]
+    })).filter(r => r.title);
+    return { provider: 'serper', query: query.trim(), results };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function searchImages({ query, credentials, num = 12, gl = 'cn', hl = 'zh-cn' }) {
   if (!query?.trim()) throw new Error('搜索关键词不能为空');
   const providerId = credentials?.provider || 'serper';
