@@ -36,6 +36,20 @@ const DEFAULTS = {
     model: 'qwen-vl-plus',
     vision: true,
     signupUrl: 'https://bailian.console.aliyun.com'
+  },
+  zhipu: {
+    name: '智谱 GLM (Flash 免费)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-flash',
+    vision: false,
+    signupUrl: 'https://open.bigmodel.cn'
+  },
+  doubao: {
+    name: '豆包 (字节方舟)',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    model: 'doubao-1-5-pro-32k-250115',
+    vision: false,
+    signupUrl: 'https://console.volcengine.com/ark'
   }
 };
 
