@@ -377,11 +377,59 @@
       </div>
 
       <div data-tab-body="character" hidden>
-        <div class="es-coming">
-          <div class="g">🎪</div>
-          <div class="tt">角色表情包</div>
-          <div class="st">P1 即将上线:角色库 + 图生图(Seedream i2i),保持 Q 版角色一致性,一次批产一整套角色表情</div>
-          <span class="tag">P1 规划中</span>
+        <div class="es-field">
+          <label>① 选一个角色 <span style="color:#e11d48">*</span></label>
+          <div class="es-char-picker">
+            <div class="es-char-slot" id="es-char-current">
+              <div class="slot-empty">
+                <div style="font-size:24px;opacity:0.4;margin-bottom:4px">🎪</div>
+                <div>还没选角色</div>
+                <div class="slot-hint">打开角色库 / 上传新角色</div>
+              </div>
+            </div>
+            <div class="es-char-picker-actions">
+              <button class="es-btn full" id="es-btn-chars">🎪 打开角色库</button>
+              <button class="es-btn full" id="es-btn-upload-char">📎 快速上传新角色</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="es-field">
+          <label>② 描述表情 / 动作 / 场景 <span style="color:#e11d48">*</span></label>
+          <textarea id="es-char-desc" rows="4" placeholder="例:疯狂大笑,眼泪飞出来,捂肚子,旁边爆炸元素
+
+只描述表情和动作,角色外观由参考图锁定"></textarea>
+        </div>
+
+        <div class="es-field">
+          <label>③ 结构模板</label>
+          <div class="es-tpl-row">
+            <select id="es-char-tpl"></select>
+            <button class="es-btn sm" id="es-btn-edit-tpl-char">编辑</button>
+          </div>
+        </div>
+
+        <div class="es-field">
+          <label>④ 批量张数 · <span id="es-char-count-val" style="color:#d6336c;font-weight:700">4</span> 张</label>
+          <div class="es-count-row">
+            <input type="range" id="es-char-count" min="1" max="10" value="4">
+            <span class="val" id="es-char-count-display">4</span>
+          </div>
+        </div>
+
+        <div class="es-field">
+          <label>⑤ 画面比例</label>
+          <div class="es-ratio-row" id="es-char-ratio">
+            <span class="es-ratio-chip active" data-r="1:1">1:1 方图</span>
+            <span class="es-ratio-chip" data-r="3:4">3:4</span>
+            <span class="es-ratio-chip" data-r="4:3">4:3</span>
+          </div>
+        </div>
+
+        <button class="es-btn primary full" id="es-btn-char-run" style="margin-top:8px">🎪 锁定角色 · 批量出表情</button>
+
+        <div style="font-size:11px;color:var(--ink-500);margin-top:14px;line-height:1.6">
+          💡 使用即梦 SeedEdit 图生图保持角色一致性 · 参考图作为"外观锚点"
         </div>
       </div>
 
@@ -462,3 +510,128 @@
     </div>
   </div>
 </div>
+
+<!-- ========== Character Library Modal ========== -->
+<div class="es-modal" id="es-modal-chars">
+  <div class="es-modal-bd" data-close-chars></div>
+  <div class="es-modal-card">
+    <div class="es-modal-head">
+      <h2>🎪 角色库</h2>
+      <span class="sp"></span>
+      <button class="es-btn sm" id="es-char-add">➕ 上传新角色</button>
+      <button class="es-modal-close" data-close-chars>×</button>
+    </div>
+    <div class="es-modal-body">
+      <div style="font-size:12px;color:var(--ink-500);margin-bottom:12px;line-height:1.6">
+        💡 点选一个角色 → 回到"角色表情"tab 批量生成。最多存 15 个,超出自动淘汰最久未用的。Q 版、二次元、写实都可以,角色图建议主体居中、正面或 3/4 侧。
+      </div>
+      <div class="es-char-grid" id="es-char-grid"></div>
+    </div>
+    <div class="es-modal-foot">
+      <span style="flex:1;color:var(--ink-500);font-size:11.5px" id="es-char-count-hint">0 个角色</span>
+      <button class="es-btn primary sm" data-close-chars>完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Additional styles for P1 ========== -->
+<style>
+/* Character picker (left panel) */
+.es-char-picker { display: flex; flex-direction: column; gap: 8px; }
+.es-char-slot {
+  border: 1.5px dashed var(--pink-300); border-radius: 10px;
+  padding: 12px; min-height: 130px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; overflow: hidden; position: relative;
+}
+.es-char-slot.has { border-style: solid; border-color: var(--pink-400); padding: 4px; }
+.es-char-slot img {
+  max-width: 100%; max-height: 160px; border-radius: 6px; display: block;
+}
+.es-char-slot .slot-name {
+  position: absolute; bottom: 8px; left: 8px;
+  background: rgba(0,0,0,0.7); color: #fff; padding: 2px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 600;
+}
+.slot-empty { text-align: center; color: var(--ink-500); font-size: 12.5px; }
+.slot-empty .slot-hint { font-size: 11px; margin-top: 2px; color: var(--ink-300); }
+.es-char-picker-actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* Character library grid */
+.es-char-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.es-char-card {
+  background: #fff; border: 2px solid var(--line); border-radius: 10px;
+  padding: 6px; position: relative; cursor: pointer;
+  transition: all .15s; display: flex; flex-direction: column; gap: 4px;
+}
+.es-char-card:hover { border-color: var(--pink-300); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(214,51,108,0.1); }
+.es-char-card.selected { border-color: #d6336c; background: var(--pink-50); box-shadow: 0 4px 16px rgba(214,51,108,0.18); }
+.es-char-card .thumb {
+  aspect-ratio: 1 / 1; background: #f5f5f5; border-radius: 6px;
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.es-char-card .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.es-char-card .name {
+  font-size: 11.5px; font-weight: 600; color: var(--ink-900);
+  text-align: center; padding: 2px; overflow: hidden; text-overflow: ellipsis;
+}
+.es-char-card .del {
+  position: absolute; top: 4px; right: 4px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(201, 42, 42, 0.9); color: #fff;
+  border: none; cursor: pointer; font-size: 11px;
+  opacity: 0; transition: opacity .15s;
+}
+.es-char-card:hover .del { opacity: 1; }
+.es-char-card .del:hover { background: #c92a2a; }
+.es-char-empty {
+  grid-column: 1 / -1; text-align: center; padding: 40px 20px;
+  color: var(--ink-500); font-size: 13px; line-height: 1.8;
+}
+
+/* Image cell matting button / state */
+.es-img .es-img-btn[data-mat] { opacity: 1; }
+.es-img.matting::before {
+  content: '✂ 抠图中...';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.9);
+  display: flex; align-items: center; justify-content: center;
+  color: #d6336c; font-weight: 700; font-size: 13px;
+  z-index: 2;
+  animation: xhs-pulse 1.2s infinite;
+}
+.es-img.has-alpha {
+  background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 12px 12px;
+}
+.es-img .matted-tag {
+  position: absolute; top: 6px; left: 6px;
+  background: var(--green-300); color: #1f5f39;
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+}
+
+/* Matting toolbar */
+.es-batch-bar {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  background: var(--pink-50); padding: 8px 10px; border-radius: 10px;
+  border: 1px solid var(--pink-100); margin-bottom: 10px;
+  font-size: 12px;
+}
+.es-batch-bar .provider {
+  background: #fff; padding: 2px 8px; border-radius: 6px;
+  font-size: 11px; border: 1px solid var(--pink-200); color: #d6336c;
+}
+
+/* Fake "loading" for char gen */
+.es-img.loading-i2i::before {
+  content: '🎪 图生图中...';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.9);
+  display: flex; align-items: center; justify-content: center;
+  color: #d6336c; font-weight: 700; font-size: 13px;
+  z-index: 2;
+}
+</style>

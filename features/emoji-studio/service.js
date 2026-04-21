@@ -1,5 +1,6 @@
 import { chat, hasUsableCredentials, safeJsonParse } from '../../core/llm.js';
 import { generateImage } from '../../core/image-gen.js';
+import { removeBackground } from '../../core/matting.js';
 
 /**
  * 爆款表情工厂 · 后端服务
@@ -156,11 +157,14 @@ export async function fillTemplate({ description, template, count = 3, lockedFie
 
 // ============ generateBatch: 并发批量出图 ============
 
-export async function generateBatch({ prompts, ratio = '1:1', imageProvider = 'jimeng', imageCredentials }) {
+export async function generateBatch({ prompts, ratio = '1:1', imageProvider = 'jimeng', imageCredentials, refImage = null }) {
   if (!Array.isArray(prompts) || !prompts.length) throw new Error('缺少提示词');
   if (prompts.length > 10) throw new Error('单次最多 10 张');
   if (!imageCredentials?.apiKey) {
-    throw new Error(`请先在「🔑 API 设置 → 🎨 图像生成」配置 ${imageProvider === 'jimeng' ? '即梦 Seedream' : 'Google Imagen'} 的 API Key`);
+    throw new Error(`请先在「🔑 模型库 → 🎨 图像生成」配置 ${imageProvider === 'jimeng' ? '即梦 Seedream' : 'Google Imagen'} 的 API Key`);
+  }
+  if (refImage && imageProvider !== 'jimeng') {
+    throw new Error('图生图(角色参考)仅支持即梦 Seedream,请切换图像模型');
   }
 
   const tasks = prompts.map((p, idx) =>
@@ -168,7 +172,8 @@ export async function generateBatch({ prompts, ratio = '1:1', imageProvider = 'j
       prompt: typeof p === 'string' ? p : (p.enPrompt || p.zhPrompt || ''),
       ratio,
       provider: imageProvider,
-      credentials: imageCredentials
+      credentials: imageCredentials,
+      refImage
     }).then(r => ({ idx, ok: true, ...r })).catch(e => ({ idx, ok: false, error: e.message }))
   );
 
@@ -176,12 +181,39 @@ export async function generateBatch({ prompts, ratio = '1:1', imageProvider = 'j
   return {
     provider: imageProvider,
     ratio,
+    mode: refImage ? 'i2i' : 't2i',
     images: results.map((r) => ({
       ok: r.ok,
       imageBase64: r.imageBase64 || null,
       imageUrl: r.imageUrl || null,
       error: r.error || null,
       prompt: typeof prompts[r.idx] === 'string' ? prompts[r.idx] : prompts[r.idx]
+    }))
+  };
+}
+
+// ============ 批量抠图 ============
+
+export async function mattingBatch({ images, provider = 'replicate', credentials }) {
+  if (!Array.isArray(images) || !images.length) throw new Error('缺少待抠图的图片');
+  if (images.length > 10) throw new Error('单次最多 10 张');
+  if (!credentials?.apiKey) {
+    throw new Error(`请先在「🔑 模型库 → ✂ 抠图」配置 ${provider} 的 API Key`);
+  }
+
+  const tasks = images.map((img, idx) =>
+    removeBackground({ image: img, provider, credentials })
+      .then(r => ({ idx, ok: true, ...r }))
+      .catch(e => ({ idx, ok: false, error: e.message }))
+  );
+  const results = await Promise.all(tasks);
+  return {
+    provider,
+    images: results.map(r => ({
+      ok: r.ok,
+      imageBase64: r.imageBase64 || null,
+      imageUrl: r.imageUrl || null,
+      error: r.error || null
     }))
   };
 }

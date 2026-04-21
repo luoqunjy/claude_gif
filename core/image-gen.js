@@ -55,9 +55,10 @@ export function imageGenInfo() {
 
 /**
  * 统一图像生成入口
- * @param {{prompt, ratio, provider, credentials}} opts
+ * @param {{prompt, ratio, provider, credentials, refImage?}} opts
+ * refImage: dataURL 或 https URL; 存在时走 i2i (图生图)
  */
-export async function generateImage({ prompt, ratio = '1:1', provider, credentials }) {
+export async function generateImage({ prompt, ratio = '1:1', provider, credentials, refImage = null }) {
   if (!prompt?.trim()) throw new Error('prompt 不能为空');
   const def = DEFAULTS[provider];
   if (!def) throw new Error(`未知图像生成模型: ${provider}`);
@@ -66,10 +67,18 @@ export async function generateImage({ prompt, ratio = '1:1', provider, credentia
   }
 
   const apiKey = credentials.apiKey.trim();
-  const model = credentials.model?.trim() || def.model;
+  let model = credentials.model?.trim() || def.model;
 
-  if (def.impl === 'google') return callGoogle(prompt, ratio, apiKey, model);
-  if (def.impl === 'volcengine') return callVolcengine(prompt, ratio, apiKey, model, credentials.baseUrl);
+  // 如果是 i2i 且用户用的是 Seedream 的默认 t2i 模型,自动切到 SeedEdit i2i 模型
+  if (refImage && def.impl === 'volcengine' && /seedream-3-0-t2i/.test(model)) {
+    model = 'doubao-seededit-3-0-i2i-250628';
+  }
+
+  if (def.impl === 'google') {
+    if (refImage) throw new Error('Google Imagen 暂不支持图生图,请用即梦 Seedream');
+    return callGoogle(prompt, ratio, apiKey, model);
+  }
+  if (def.impl === 'volcengine') return callVolcengine(prompt, ratio, apiKey, model, credentials.baseUrl, refImage);
   throw new Error(`未实现的图像生成模型: ${provider}`);
 }
 
@@ -131,7 +140,7 @@ async function callGoogle(prompt, ratio, apiKey, model) {
 /**
  * 火山方舟(即梦/Seedream) — OpenAI 兼容 images/generations
  */
-async function callVolcengine(prompt, ratio, apiKey, model, customBaseUrl) {
+async function callVolcengine(prompt, ratio, apiKey, model, customBaseUrl, refImage = null) {
   const ratioToSize = {
     '1:1': '1024x1024',
     '9:16': '720x1280',
@@ -153,6 +162,10 @@ async function callVolcengine(prompt, ratio, apiKey, model, customBaseUrl) {
     response_format: 'b64_json',
     n: 1
   };
+  // 图生图: 传参考图 (SeedEdit/Seedream i2i 支持)
+  if (refImage) {
+    body.image = refImage;
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90000);

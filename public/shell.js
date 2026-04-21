@@ -5,6 +5,7 @@
 const STORAGE_KEY = 'opsAssistant.llm.v2';
 const SEARCH_STORAGE_KEY = 'opsAssistant.search.v1';
 const IMAGE_STORAGE_KEY = 'opsAssistant.imageGen.v1';
+const MATTING_STORAGE_KEY = 'opsAssistant.matting.v1';
 
 // ============== Storage helpers ==============
 function loadConfig() {
@@ -29,13 +30,23 @@ function saveSearchConfig(cfg) {
 }
 function loadImageConfig() {
   try {
-    return JSON.parse(localStorage.getItem(IMAGE_STORAGE_KEY)) || { active: 'google-imagen', providers: {} };
+    return JSON.parse(localStorage.getItem(IMAGE_STORAGE_KEY)) || { active: 'jimeng', providers: {} };
   } catch {
-    return { active: 'google-imagen', providers: {} };
+    return { active: 'jimeng', providers: {} };
   }
 }
 function saveImageConfig(cfg) {
   localStorage.setItem(IMAGE_STORAGE_KEY, JSON.stringify(cfg));
+}
+function loadMattingConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(MATTING_STORAGE_KEY)) || { active: 'replicate', providers: {} };
+  } catch {
+    return { active: 'replicate', providers: {} };
+  }
+}
+function saveMattingConfig(cfg) {
+  localStorage.setItem(MATTING_STORAGE_KEY, JSON.stringify(cfg));
 }
 
 // ============== Globals exposed to feature panels ==============
@@ -111,6 +122,18 @@ window.App = {
     const cred = cfg.providers?.[active];
     if (!cred?.apiKey) return null;
     return { provider: active, ...cred };
+  },
+
+  // —— 抠图 ——
+  getMattingCredentialsFor(featureId) {
+    const llmCfg = loadConfig();
+    const matCfg = loadMattingConfig();
+    const prefs = llmCfg.modulePreferences?.[featureId] || {};
+    const providerId = prefs.matting || matCfg.active;
+    if (!providerId) return null;
+    const cred = matCfg.providers?.[providerId];
+    if (!cred?.apiKey) return null;
+    return { provider: providerId, credentials: cred };
   },
 
   // —— 能力查询 ——
@@ -300,6 +323,7 @@ let activeFeatureId = null;
 
 let supportedSearchProviders = [];
 let supportedImageProviders = [];
+let supportedMattingProviders = [];
 
 async function main() {
   const [health, features] = await Promise.all([
@@ -310,6 +334,7 @@ async function main() {
   supportedProviders = health?.llm?.supported || [];
   supportedSearchProviders = health?.search?.supported || [];
   supportedImageProviders = health?.imageGen?.supported || [];
+  supportedMattingProviders = health?.matting?.supported || [];
 
   renderStatusAndSwitcher();
   bindSettingsModal();
@@ -623,9 +648,11 @@ function renderModelLibrary() {
     return 0;
   });
 
+  const matCfg = loadMattingConfig();
   const llmList = sortProviders(supportedProviders, id => llmCfg.providers?.[id]?.apiKey);
   const imgList = sortProviders(supportedImageProviders, id => imgCfg.providers?.[id]?.apiKey);
   const searchList = sortProviders(supportedSearchProviders, id => searchCfg.providers?.[id]?.apiKey);
+  const matList = sortProviders(supportedMattingProviders, id => matCfg.providers?.[id]?.apiKey);
 
   libRoot.innerHTML = `
     <div class="lib-sec">
@@ -663,11 +690,12 @@ function renderModelLibrary() {
 
     <div class="lib-sec">
       <div class="lib-sec-head">
-        <h3>✂ 抠图</h3>
-        <span class="sub">P1 规划中 · Replicate / 抠抠图 / 火山视觉</span>
+        <h3>✂ 抠图 (去背景)</h3>
+        <span class="sub">Replicate / 抠抠图 / 火山视觉</span>
+        <span class="used-by">${usedByText('matting.remove-bg')}</span>
       </div>
-      <div style="font-size:12.5px;color:var(--ink-500);padding:14px;background:var(--pink-50);border-radius:10px;line-height:1.6;">
-        P1 将接入 3 家抠图服务,支持生图后一键去背景。目前新生成的图暂不支持抠图,需要的话可以先用 <a href="https://www.koukoutu.com" target="_blank" rel="noopener" style="color:#d6336c">抠抠图</a> 在线版。
+      <div class="lib-grid">
+        ${matList.map(p => renderCard(p, 'matting', Boolean(matCfg.providers?.[p.id]?.apiKey))).join('')}
       </div>
     </div>
   `;
@@ -721,7 +749,10 @@ function collapseCard(card) {
 }
 
 function renderCard(def, ptype, configured) {
-  const cfgObj = ptype === 'imageGen' ? loadImageConfig() : (ptype === 'search' ? loadSearchConfig() : loadConfig());
+  const cfgObj = ptype === 'imageGen' ? loadImageConfig()
+               : ptype === 'search' ? loadSearchConfig()
+               : ptype === 'matting' ? loadMattingConfig()
+               : loadConfig();
   const cur = cfgObj.providers?.[def.id] || {};
 
   const steps = (def.signupSteps || []).map(s => `<li>${escapeHtml(s)}</li>`).join('');
@@ -792,6 +823,11 @@ function saveCard(pid, ptype, card, { clear = false } = {}) {
     if (!apiKey) { delete cfg.providers[pid]; toast('已清除'); }
     else { cfg.providers[pid] = { apiKey, baseUrl, model }; cfg.active = pid; toast('✓ 已保存'); }
     saveImageConfig(cfg);
+  } else if (ptype === 'matting') {
+    const cfg = loadMattingConfig();
+    if (!apiKey) { delete cfg.providers[pid]; toast('已清除'); }
+    else { cfg.providers[pid] = { apiKey, baseUrl, model }; cfg.active = pid; toast('✓ 已保存'); }
+    saveMattingConfig(cfg);
   } else {
     const cfg = loadConfig();
     if (!apiKey) { delete cfg.providers[pid]; toast('已清除'); }
@@ -812,20 +848,23 @@ function handleExport() {
   const cfg = loadConfig();
   const searchCfg = loadSearchConfig();
   const imageCfg = loadImageConfig();
+  const matCfg = loadMattingConfig();
   const count = Object.keys(cfg.providers || {}).filter(k => cfg.providers[k]?.apiKey).length;
   const searchCount = Object.keys(searchCfg.providers || {}).filter(k => searchCfg.providers[k]?.apiKey).length;
   const imageCount = Object.keys(imageCfg.providers || {}).filter(k => imageCfg.providers[k]?.apiKey).length;
-  if (!count && !searchCount && !imageCount) { toast('当前没有任何已配置的供应商,无需导出', 'error'); return; }
+  const matCount = Object.keys(matCfg.providers || {}).filter(k => matCfg.providers[k]?.apiKey).length;
+  if (!count && !searchCount && !imageCount && !matCount) { toast('当前没有任何已配置的供应商,无需导出', 'error'); return; }
 
   const payload = {
     _app: 'ops-assistant',
-    _version: 'v3',
+    _version: 'v4',
     exportedAt: new Date().toISOString(),
     active: cfg.active,
     providers: cfg.providers,
     modulePreferences: cfg.modulePreferences || {},
     search: searchCfg,
-    imageGen: imageCfg
+    imageGen: imageCfg,
+    matting: matCfg
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -893,6 +932,20 @@ function handleImport() {
         saveImageConfig(mergedImage);
       }
 
+      // 同步导入抠图配置
+      let matImportedCount = 0;
+      if (data.matting?.providers) {
+        const currentMat = loadMattingConfig();
+        const mIds = Object.keys(data.matting.providers).filter(k => data.matting.providers[k]?.apiKey);
+        matImportedCount = mIds.length;
+        const mergedMat = {
+          active: data.matting.active && data.matting.providers[data.matting.active]?.apiKey ? data.matting.active : currentMat.active,
+          providers: { ...currentMat.providers }
+        };
+        for (const id of mIds) mergedMat.providers[id] = data.matting.providers[id];
+        saveMattingConfig(mergedMat);
+      }
+
       // 模块偏好也合并
       if (data.modulePreferences) {
         const cfg2 = loadConfig();
@@ -900,7 +953,7 @@ function handleImport() {
         saveConfig(cfg2);
       }
 
-      if (!importedIds.length && !searchImportedCount && !imageImportedCount) {
+      if (!importedIds.length && !searchImportedCount && !imageImportedCount && !matImportedCount) {
         throw new Error('文件里没有任何已配置的供应商');
       }
 
@@ -912,6 +965,7 @@ function handleImport() {
       if (importedIds.length) parts.push(`${importedIds.length} 个 LLM`);
       if (searchImportedCount) parts.push(`${searchImportedCount} 个搜索服务`);
       if (imageImportedCount) parts.push(`${imageImportedCount} 个图像模型`);
+      if (matImportedCount) parts.push(`${matImportedCount} 个抠图服务`);
       toast(`✓ 已导入 ${parts.join(' + ')}`);
     } catch (err) {
       toast('导入失败: ' + err.message, 'error');

@@ -6,6 +6,7 @@ import { loadFeatures } from './core/registry.js';
 import { llmInfo } from './core/llm.js';
 import { supportedSearchProviders } from './core/search.js';
 import { imageGenInfo } from './core/image-gen.js';
+import { mattingInfo } from './core/matting.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +24,7 @@ app.get('/api/health', (req, res) => {
     llm: llmInfo(),
     search: { supported: supportedSearchProviders() },
     imageGen: imageGenInfo(),
+    matting: mattingInfo(),
     features: features.map(f => f.id)
   });
 });

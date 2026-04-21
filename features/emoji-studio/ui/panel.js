@@ -7,6 +7,8 @@
  */
 
 const LS_TPL = 'emojiStudio.templates.v1';
+const LS_CHARS = 'emojiStudio.characters.v1';
+const CHARS_MAX = 15;
 
 export async function mount(root) {
   const $ = (s) => root.querySelector(s);
@@ -26,6 +28,51 @@ export async function mount(root) {
   } catch (e) { presets = []; }
   let templates = loadTemplates(presets);
   renderTplSelects();
+
+  // ---- Characters (P1) ----
+  let characters = loadCharacters();
+  let selectedChar = null;
+  renderCharTplSelect();
+  renderCharCurrent();
+
+  // ---- Character tab handlers ----
+  const charCountEl = $('#es-char-count');
+  charCountEl?.addEventListener('input', () => {
+    $('#es-char-count-val').textContent = charCountEl.value;
+    $('#es-char-count-display').textContent = charCountEl.value;
+  });
+  const charRatioRow = $('#es-char-ratio');
+  charRatioRow?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.es-ratio-chip'); if (!chip) return;
+    charRatioRow.querySelectorAll('.es-ratio-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+  $('#es-btn-chars')?.addEventListener('click', openCharModal);
+  $('#es-btn-upload-char')?.addEventListener('click', () => pickFile(async (file) => {
+    const dataUrl = await readAsDataURL(file);
+    const ch = addCharacter({ refImage: dataUrl, name: file.name.replace(/\.[^.]+$/, '').slice(0, 20) || '新角色' });
+    selectChar(ch);
+  }));
+  $('#es-btn-edit-tpl-char')?.addEventListener('click', () => openTplModal($('#es-char-tpl').value));
+  $('#es-btn-char-run')?.addEventListener('click', runCharacterPipeline);
+
+  // Paste char image
+  window.addEventListener('paste', (e) => {
+    if (document.querySelector('.es-tab.active')?.dataset.tab !== 'character') return;
+    if (document.querySelector('.es-modal.on')) return;
+    const items = e.clipboardData?.items || [];
+    for (const it of items) {
+      if (it.type.startsWith('image/')) {
+        const f = it.getAsFile(); if (!f) continue;
+        readAsDataURL(f).then(dataUrl => {
+          const ch = addCharacter({ refImage: dataUrl, name: '粘贴角色-' + new Date().toISOString().slice(11, 16) });
+          selectChar(ch);
+          toast('角色已入库');
+        });
+        break;
+      }
+    }
+  });
 
   // ---- Tab switching ----
   $$('.es-tab').forEach(t => {
@@ -124,6 +171,8 @@ export async function mount(root) {
   function renderOutput({ variants, images, ratio, fillOnly }) {
     const out = $('#es-output');
     const hasImgs = images && images.length;
+    // Stash for matting handlers to access
+    window.__esLastImages = images || [];
 
     out.innerHTML = `
       <div class="es-output">
@@ -154,6 +203,13 @@ export async function mount(root) {
             🖼️ 生成结果 <span class="count">${images.filter(x => x.ok).length}/${images.length}</span>
             <span class="spacer"></span>
             <button class="es-btn sm" id="es-dl-all">⬇ 打包下载全部</button>
+          </div>
+          <div class="es-batch-bar" id="es-batch-bar">
+            <span>批量操作:</span>
+            <button class="es-btn sm" id="es-mat-all">✂ 全部抠图</button>
+            <span class="provider" id="es-mat-provider">${renderMattingLabel()}</span>
+            <span style="flex:1"></span>
+            <span style="color:var(--ink-500);font-size:11px" id="es-char-add-last">🎪 P2: 发送到动画化</span>
           </div>
           <div class="es-imgs" id="es-img-grid">
             ${images.map((im, i) => renderImgCell(im, i)).join('')}
@@ -192,23 +248,137 @@ export async function mount(root) {
       // Re-run as full pipeline with existing variants(注:简化,重跑整条)
       runPipeline({ fillOnly: false });
     });
+
+    // Per-cell matting handlers
+    out.querySelectorAll('[data-mat]').forEach(b => {
+      b.addEventListener('click', () => {
+        const i = parseInt(b.dataset.mat, 10);
+        matSingle(i);
+      });
+    });
+
+    // Batch matting handler
+    out.querySelector('#es-mat-all')?.addEventListener('click', () => matBatch());
   }
 
   function renderImgCell(im, idx) {
     if (!im.ok) {
       return `<div class="es-img"><div class="es-img-fail">❌ ${escapeHtml(im.error || '生成失败')}</div></div>`;
     }
-    const src = im.imageBase64 || im.imageUrl;
+    const src = im.matted?.imageBase64 || im.matted?.imageUrl || im.imageBase64 || im.imageUrl;
+    const hasAlpha = Boolean(im.matted);
     return `
-      <div class="es-img">
+      <div class="es-img ${hasAlpha ? 'has-alpha' : ''}" data-cell="${idx}">
         <img src="${escapeAttr(src)}" alt="">
+        ${hasAlpha ? '<span class="matted-tag">✓ 已抠</span>' : ''}
         <div class="es-img-actions">
           <button class="es-img-btn" data-dl="${idx}" title="下载">⬇</button>
-          <button class="es-img-btn" title="抠图 (P1)" disabled style="opacity:.5">✂</button>
+          <button class="es-img-btn" data-mat="${idx}" title="抠图去背景">✂</button>
           <button class="es-img-btn" title="动画化 (P2)" disabled style="opacity:.5">🎬</button>
         </div>
       </div>
     `;
+  }
+
+  function renderMattingLabel() {
+    const mc = window.App?.getMattingCredentialsFor?.('emoji-studio');
+    if (!mc) return '✂ 未配置抠图';
+    return `✂ ${mc.provider}`;
+  }
+
+  // state for matting: lastImages[idx] keeps original + matted urls
+  let mattedImages = []; // parallel array to lastRenderedImages
+
+  async function matSingle(idx) {
+    const cell = document.querySelector(`.es-img[data-cell="${idx}"]`);
+    if (!cell) return;
+    const images = getLastImages();
+    const im = images[idx]; if (!im?.ok) return;
+    const src = im.imageBase64 || im.imageUrl;
+    const cred = window.App.getMattingCredentialsFor('emoji-studio');
+    if (!cred) { toast('请先配置抠图服务 (Replicate 推荐)'); window.App?.openSettings?.('replicate', 'matting'); return; }
+
+    cell.classList.add('matting');
+    try {
+      const res = await fetch('/api/emoji-studio/matting', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: [src], provider: cred.provider, credentials: cred.credentials })
+      }).then(r => r.json());
+      if (res.error) throw new Error(res.error);
+      const out0 = res.images?.[0];
+      if (!out0?.ok) throw new Error(out0?.error || '抠图失败');
+      im.matted = { imageBase64: out0.imageBase64, imageUrl: out0.imageUrl };
+      // Re-render just this cell
+      const newHtml = renderImgCell(im, idx);
+      const wrap = document.createElement('div');
+      wrap.innerHTML = newHtml;
+      cell.replaceWith(wrap.firstElementChild);
+      // Re-bind cell actions
+      document.querySelector(`.es-img[data-cell="${idx}"] [data-dl]`)?.addEventListener('click', () => {
+        const im2 = images[idx];
+        const src2 = im2.matted?.imageBase64 || im2.matted?.imageUrl || im2.imageBase64 || im2.imageUrl;
+        downloadImage(src2, `表情包-抠图-${Date.now()}-${idx + 1}.png`);
+      });
+      document.querySelector(`.es-img[data-cell="${idx}"] [data-mat]`)?.addEventListener('click', () => matSingle(idx));
+      toast('抠图完成');
+    } catch (e) {
+      cell.classList.remove('matting');
+      toast('抠图失败: ' + e.message);
+    }
+  }
+
+  async function matBatch() {
+    const images = getLastImages();
+    const pending = images.map((im, i) => ({ im, i })).filter(x => x.im.ok && !x.im.matted);
+    if (!pending.length) { toast('没有可抠的图'); return; }
+    const cred = window.App.getMattingCredentialsFor('emoji-studio');
+    if (!cred) { toast('请先配置抠图服务'); window.App?.openSettings?.('replicate', 'matting'); return; }
+
+    pending.forEach(({ i }) => {
+      document.querySelector(`.es-img[data-cell="${i}"]`)?.classList.add('matting');
+    });
+
+    try {
+      const res = await fetch('/api/emoji-studio/matting', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images: pending.map(p => p.im.imageBase64 || p.im.imageUrl),
+          provider: cred.provider, credentials: cred.credentials
+        })
+      }).then(r => r.json());
+      if (res.error) throw new Error(res.error);
+
+      pending.forEach(({ im, i }, k) => {
+        const out = res.images?.[k];
+        if (out?.ok) im.matted = { imageBase64: out.imageBase64, imageUrl: out.imageUrl };
+      });
+      // Full re-render the grid
+      const grid = document.getElementById('es-img-grid');
+      if (grid) grid.innerHTML = images.map((im, i) => renderImgCell(im, i)).join('');
+      // Re-bind handlers
+      grid?.querySelectorAll('[data-dl]').forEach(b => {
+        const i = parseInt(b.dataset.dl, 10);
+        b.addEventListener('click', () => {
+          const im2 = images[i];
+          const src2 = im2.matted?.imageBase64 || im2.matted?.imageUrl || im2.imageBase64 || im2.imageUrl;
+          downloadImage(src2, `表情包-${Date.now()}-${i + 1}.png`);
+        });
+      });
+      grid?.querySelectorAll('[data-mat]').forEach(b => {
+        const i = parseInt(b.dataset.mat, 10);
+        b.addEventListener('click', () => matSingle(i));
+      });
+      toast(`批量抠图完成 · 成功 ${pending.filter(({im}) => im.matted).length}/${pending.length}`);
+    } catch (e) {
+      pending.forEach(({ i }) => document.querySelector(`.es-img[data-cell="${i}"]`)?.classList.remove('matting'));
+      toast('批量抠图失败: ' + e.message);
+    }
+  }
+
+  function getLastImages() {
+    // The renderOutput() call stashes images in closure; read from DOM-accessible way:
+    // simpler: stash on window for this panel instance
+    return window.__esLastImages || [];
   }
 
   function downloadImage(src, filename) {
@@ -545,6 +715,206 @@ export async function mount(root) {
   }
   function currentTplId() { return $('#es-tpl-select')?.value; }
   function getCurrentTemplate() { return templates.find(t => t.id === currentTplId()); }
+
+  // =========== Characters (P1) ===========
+
+  function loadCharacters() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(LS_CHARS));
+      if (Array.isArray(arr)) return arr;
+    } catch {}
+    return [];
+  }
+  function saveCharacters() {
+    // LRU prune
+    characters.sort((a, b) => (b.lastUsedAt || b.createdAt) - (a.lastUsedAt || a.createdAt));
+    if (characters.length > CHARS_MAX) characters = characters.slice(0, CHARS_MAX);
+    localStorage.setItem(LS_CHARS, JSON.stringify(characters));
+  }
+  function addCharacter({ refImage, name = '新角色', tags = [] }) {
+    const ch = {
+      id: 'ch-' + Date.now(),
+      name, refImage, tags,
+      createdAt: Date.now(),
+      lastUsedAt: Date.now()
+    };
+    characters.unshift(ch);
+    saveCharacters();
+    renderCharGrid();
+    updateCharCountHint();
+    return ch;
+  }
+  function deleteCharacter(id) {
+    characters = characters.filter(c => c.id !== id);
+    if (selectedChar?.id === id) { selectedChar = null; renderCharCurrent(); }
+    saveCharacters();
+    renderCharGrid();
+    updateCharCountHint();
+  }
+  function selectChar(ch) {
+    selectedChar = ch;
+    if (ch) { ch.lastUsedAt = Date.now(); saveCharacters(); }
+    renderCharCurrent();
+    renderCharGrid();
+    // Auto-close modal after a select
+    setTimeout(() => $('#es-modal-chars').classList.remove('on'), 200);
+  }
+  function renderCharCurrent() {
+    const slot = $('#es-char-current'); if (!slot) return;
+    if (selectedChar) {
+      slot.classList.add('has');
+      slot.innerHTML = `
+        <img src="${escapeAttr(selectedChar.refImage)}" alt="">
+        <div class="slot-name">${escapeHtml(selectedChar.name)}</div>
+      `;
+    } else {
+      slot.classList.remove('has');
+      slot.innerHTML = `
+        <div class="slot-empty">
+          <div style="font-size:24px;opacity:0.4;margin-bottom:4px">🎪</div>
+          <div>还没选角色</div>
+          <div class="slot-hint">打开角色库 / 上传新角色</div>
+        </div>
+      `;
+    }
+  }
+  function renderCharTplSelect() {
+    const sel = $('#es-char-tpl'); if (!sel) return;
+    const prev = sel.value;
+    const charFirst = [...templates].sort((a, b) => (a.kind === 'character' ? -1 : 0) - (b.kind === 'character' ? -1 : 0));
+    sel.innerHTML = charFirst.map(t => `<option value="${escapeAttr(t.id)}">${escapeHtml(t.name)} · ${t.fields?.length || 0} 字段</option>`).join('');
+    if (prev && templates.some(t => t.id === prev)) sel.value = prev;
+    else if (charFirst[0]) sel.value = charFirst[0].id;
+  }
+  function renderCharGrid() {
+    const grid = $('#es-char-grid'); if (!grid) return;
+    if (!characters.length) {
+      grid.innerHTML = `
+        <div class="es-char-empty">
+          <div style="font-size:36px;opacity:0.4;margin-bottom:8px">🎪</div>
+          角色库空空如也<br>
+          <span style="font-size:11.5px">点右上「➕ 上传新角色」添加第一个</span>
+        </div>
+      `;
+      return;
+    }
+    grid.innerHTML = characters.map(c => `
+      <div class="es-char-card ${selectedChar?.id === c.id ? 'selected' : ''}" data-cid="${escapeAttr(c.id)}">
+        <div class="thumb"><img src="${escapeAttr(c.refImage)}" alt=""></div>
+        <div class="name" title="${escapeAttr(c.name)}">${escapeHtml(c.name)}</div>
+        <button class="del" data-del-cid="${escapeAttr(c.id)}" title="删除">×</button>
+      </div>
+    `).join('');
+    grid.querySelectorAll('.es-char-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('[data-del-cid]')) return;
+        const ch = characters.find(c => c.id === card.dataset.cid); if (!ch) return;
+        selectChar(ch);
+      });
+    });
+    grid.querySelectorAll('[data-del-cid]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!confirm('删除这个角色?')) return;
+        deleteCharacter(btn.dataset.delCid);
+      });
+    });
+  }
+  function updateCharCountHint() {
+    const el = $('#es-char-count-hint'); if (!el) return;
+    el.textContent = `${characters.length} 个角色 · 最多 ${CHARS_MAX}`;
+  }
+
+  // Character modal
+  const modalChars = $('#es-modal-chars');
+  function openCharModal() {
+    renderCharGrid();
+    updateCharCountHint();
+    modalChars.classList.add('on');
+  }
+  modalChars?.querySelectorAll('[data-close-chars]').forEach(el => el.addEventListener('click', () => modalChars.classList.remove('on')));
+  $('#es-char-add')?.addEventListener('click', () => pickFile(async (file) => {
+    const dataUrl = await readAsDataURL(file);
+    const name = prompt('给这个角色起个名字?', file.name.replace(/\.[^.]+$/, '').slice(0, 20)) || '未命名角色';
+    addCharacter({ refImage: dataUrl, name });
+  }));
+
+  function pickFile(cb) {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = () => { const f = input.files?.[0]; if (f) cb(f); };
+    input.click();
+  }
+
+  // =========== Character pipeline (i2i) ===========
+
+  async function runCharacterPipeline() {
+    if (!selectedChar) { toast('请先选一个角色'); return; }
+    const desc = $('#es-char-desc').value.trim();
+    if (!desc) { toast('请填写表情/动作描述'); return; }
+    const tpl = templates.find(t => t.id === $('#es-char-tpl').value);
+    if (!tpl) { toast('请选模板'); return; }
+    const count = parseInt(charCountEl.value, 10);
+    const ratio = charRatioRow.querySelector('.es-ratio-chip.active')?.dataset.r || '1:1';
+
+    const llmCred = window.App.getCredentialsFor('emoji-studio');
+    if (!llmCred) { toast('请先配置文本模型'); window.App?.openSettings?.(); return; }
+    const imgCred = window.App.getImageCredentialsFor('emoji-studio');
+    if (!imgCred) { toast('请先配置图像模型'); window.App?.openSettings?.('jimeng', 'imageGen'); return; }
+    if (imgCred.provider !== 'jimeng') {
+      toast('角色一致性仅支持即梦 Seedream,请切换');
+      window.App?.openSettings?.('jimeng', 'imageGen');
+      return;
+    }
+
+    const btn = $('#es-btn-char-run');
+    btn.disabled = true;
+    const origText = btn.textContent;
+    btn.textContent = '🌀 填词中...';
+
+    const out = $('#es-output');
+    out.innerHTML = loadingBlock(`用 "${selectedChar.name}" 作角色参考,AI 正在填词...`);
+
+    try {
+      // Step 1: fill (lock character field with selectedChar.name for reference)
+      const lockedFields = {};
+      if (tpl.fields.some(f => f.key === 'character')) {
+        lockedFields.character = selectedChar.name + '(参考上传的角色图,保持外观一致)';
+      }
+      const fillRes = await fetch('/api/emoji-studio/fill', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: desc, template: tpl, count, lockedFields,
+          ...llmCred
+        })
+      }).then(r => r.json());
+      if (fillRes.error) throw new Error(fillRes.error === 'llm_parse_failed' ? '填词 JSON 解析失败,重试' : fillRes.error);
+
+      const variants = fillRes.variants || [];
+      renderOutput({ variants, images: null, ratio, fillOnly: false });
+
+      // Step 2: i2i generate with refImage
+      btn.textContent = `🎪 图生图中 0/${variants.length}...`;
+      const imgRes = await fetch('/api/emoji-studio/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompts: variants.map(v => v.enPrompt || v.zhPrompt || ''),
+          ratio,
+          imageProvider: imgCred.provider,
+          imageCredentials: imgCred.credentials,
+          refImage: selectedChar.refImage
+        })
+      }).then(r => r.json());
+      if (imgRes.error) throw new Error(imgRes.error);
+
+      renderOutput({ variants, images: imgRes.images, ratio, fillOnly: false });
+    } catch (e) {
+      out.innerHTML = `<div class="es-err">❌ ${escapeHtml(e.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  }
 
   // =========== utils ===========
 

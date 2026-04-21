@@ -16,6 +16,7 @@ function wrap(handler) {
 
 router.post('/fill', wrap(b => service.fillTemplate(b)));
 router.post('/generate', wrap(b => service.generateBatch(b)));
+router.post('/matting', wrap(b => service.mattingBatch(b)));
 router.post('/reverse', wrap(b => service.reverse(b)));
 router.get('/presets', (req, res) => res.json(service.presetTemplates()));
 
