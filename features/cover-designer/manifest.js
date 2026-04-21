@@ -9,5 +9,12 @@ export default {
   ui: {
     panel: 'features/cover-designer/ui/panel.html',
     script: 'features/cover-designer/ui/panel.js'
+  },
+  capabilities: {
+    needs: [
+      { kind: 'llm.text', purpose: '封面文案 / 风格分析', required: true },
+      { kind: 'imageGen.t2i', purpose: '主题生图', required: true },
+      { kind: 'search.images', purpose: '找热门封面参考', required: false }
+    ]
   }
 };

@@ -48,26 +48,25 @@
   <div class="modal-backdrop"></div>
   <div class="modal-card">
     <div class="modal-header">
-      <h2>🔑 LLM API 设置</h2>
+      <h2>🔑 模型库 · 配一次 Key 全站通用</h2>
       <button class="modal-close" id="settings-close" aria-label="关闭">×</button>
     </div>
 
     <div class="modal-body">
       <div class="settings-banner">
-        <strong>🔒 安全说明</strong>
-        <span>API Key 仅保存在你当前浏览器（localStorage），不会上传云端。换浏览器 / 换设备 / 换域名时需重新填入 —— 建议点下方「💾 导出」保存一份备份文件，日后「📂 导入」一秒恢复。</span>
+        <strong>🔒 Key 仅存在你浏览器</strong>
+        <span>localStorage · 不上传云端 · 换设备请「💾 导出」备份、「📂 导入」一秒恢复。</span>
       </div>
 
-      <div class="provider-tabs" id="provider-tabs"></div>
-      <div class="provider-form" id="provider-form"></div>
+      <div id="lib-root"></div>
     </div>
 
     <div class="modal-footer">
       <button class="btn btn-ghost btn-sm" id="settings-import" title="从 JSON 备份文件恢复">📂 导入</button>
       <button class="btn btn-ghost btn-sm" id="settings-export" title="把当前所有配置下载为 JSON 备份">💾 导出</button>
+      <span style="font-size:11.5px;color:var(--ink-500);margin-left:8px">每张卡片独立「保存」，无需统一提交</span>
       <div style="flex:1"></div>
-      <button class="btn btn-secondary" id="settings-cancel">取消</button>
-      <button class="btn btn-primary" id="settings-save">保存</button>
+      <button class="btn btn-primary" id="settings-cancel">完成</button>
     </div>
   </div>
 </div>

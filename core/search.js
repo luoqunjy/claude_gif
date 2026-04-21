@@ -5,10 +5,20 @@
 
 const PROVIDERS = {
   serper: {
-    name: 'Serper (Google Images)',
+    name: 'Serper',
+    icon: '🔍',
     baseUrl: 'https://google.serper.dev/images',
     signupUrl: 'https://serper.dev',
-    freeTier: '2500 次终身免费'
+    freeTier: '2500 次终身免费',
+    capabilities: ['web', 'images'],
+    recommended: true,
+    tagline: 'Google 搜索 Wrapper · 网页+图片',
+    pricing: { tier: 'free-trial', label: '终身免费 2500 次', detail: '超出后 $50 / 50000 次' },
+    signupSteps: [
+      '打开 serper.dev 登录(用 Google 账号 1 秒)',
+      'Dashboard 复制 API Key',
+      '粘贴到下方'
+    ]
   }
 };
 

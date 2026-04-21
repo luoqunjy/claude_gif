@@ -12,5 +12,11 @@ export default {
   ui: {
     panel: 'features/link-analyzer/ui/panel.html',
     script: 'features/link-analyzer/ui/panel.js'
+  },
+  capabilities: {
+    needs: [
+      { kind: 'llm.text', purpose: '拆解链接内容生成模板', required: true },
+      { kind: 'llm.vision', purpose: '上传图片/视频帧分析', required: false }
+    ]
   }
 };

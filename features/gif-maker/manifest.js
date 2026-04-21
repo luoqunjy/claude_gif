@@ -12,5 +12,10 @@ export default {
   ui: {
     panel: 'features/gif-maker/ui/panel.html',
     script: 'features/gif-maker/ui/panel.js'
+  },
+  capabilities: {
+    needs: [
+      { kind: 'llm.text', purpose: 'AI 自定义动画生成', required: false }
+    ]
   }
 };

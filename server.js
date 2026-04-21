@@ -33,7 +33,10 @@ app.get('/api/features', (req, res) => {
     name: f.name,
     icon: f.icon,
     description: f.description,
-    ui: f.ui
+    ui: f.ui,
+    capabilities: f.capabilities || null,
+    deprecated: f.deprecated || false,
+    replacedBy: f.replacedBy || null
   })));
 });
 

@@ -12,5 +12,11 @@ export default {
   ui: {
     panel: 'features/xhs-copywriter/ui/panel.html',
     script: 'features/xhs-copywriter/ui/panel.js'
+  },
+  capabilities: {
+    needs: [
+      { kind: 'llm.text', purpose: '拆解爆款套路 + 写作', required: true },
+      { kind: 'search.web', purpose: '搜真实对标笔记', required: true }
+    ]
   }
 };

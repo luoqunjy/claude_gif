@@ -6,23 +6,42 @@
  */
 
 const DEFAULTS = {
-  'google-imagen': {
-    name: 'Google Imagen',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-    model: 'imagen-3.0-generate-001',
-    signupUrl: 'https://aistudio.google.com/apikey',
-    supportedRatios: ['1:1', '9:16', '16:9', '3:4', '4:3'],
-    impl: 'google',
-    hint: 'Google AI Studio 申请,部分模型需付费层。免费尝试 gemini-2.0-flash-preview-image-generation'
-  },
   'jimeng': {
-    name: '即梦 (豆包 Seedream)',
+    name: '即梦 Seedream',
+    icon: '🍜',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
     model: 'doubao-seedream-3-0-t2i-250415',
-    signupUrl: 'https://www.volcengine.com/product/doubao',
     supportedRatios: ['1:1', '9:16', '16:9', '3:4', '4:3', '2:3', '3:2'],
     impl: 'volcengine',
-    hint: '火山方舟 Ark 控制台申请 Key,需先开通豆包文生图模型'
+    capabilities: ['t2i'],
+    recommended: true,
+    tagline: '国内首推 · 中文语义强 · Q版表情最佳',
+    pricing: { tier: 'paid', label: '按张计费 · 约 ¥0.1-0.3/张', detail: '国内推理速度快,3 秒/张' },
+    signupUrl: 'https://console.volcengine.com/ark',
+    signupSteps: [
+      '打开 console.volcengine.com/ark',
+      '「模型广场」找到 doubao-seedream 系列 → 开通',
+      '「API Key 管理」创建 Key,粘贴到下方'
+    ],
+    hint: '火山方舟 Ark 控制台申请 Key,需先开通 Seedream 文生图模型'
+  },
+  'google-imagen': {
+    name: 'Google Imagen',
+    icon: '🅶',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    model: 'imagen-3.0-generate-001',
+    supportedRatios: ['1:1', '9:16', '16:9', '3:4', '4:3'],
+    impl: 'google',
+    capabilities: ['t2i'],
+    tagline: '写实风强 · 国内需代理',
+    pricing: { tier: 'paid', label: 'Imagen 付费 / Gemini 2.0 Flash 有免费层', detail: 'gemini-2.0-flash-preview-image-generation 可免费用' },
+    signupUrl: 'https://aistudio.google.com/apikey',
+    signupSteps: [
+      'aistudio.google.com/apikey 登录 Google 账号',
+      '「Create API Key」',
+      '国内访问可能需要代理'
+    ],
+    hint: 'Google AI Studio 申请。Imagen 需付费层,可改用免费的 gemini-2.0-flash-preview-image-generation'
   }
 };
 

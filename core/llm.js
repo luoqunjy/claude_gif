@@ -9,47 +9,103 @@ import 'dotenv/config';
  */
 
 const DEFAULTS = {
-  kimi: {
-    name: 'Kimi (月之暗面)',
-    baseUrl: 'https://api.moonshot.cn/v1',
-    model: 'moonshot-v1-8k',
-    vision: false,
-    signupUrl: 'https://platform.moonshot.cn'
-  },
-  deepseek: {
-    name: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com/v1',
-    model: 'deepseek-chat',
-    vision: false,
-    signupUrl: 'https://platform.deepseek.com'
-  },
-  openai: {
-    name: 'OpenAI',
-    baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-4o-mini',
-    vision: true,
-    signupUrl: 'https://platform.openai.com'
-  },
-  qwen: {
-    name: '通义千问',
-    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    model: 'qwen-vl-plus',
-    vision: true,
-    signupUrl: 'https://bailian.console.aliyun.com'
-  },
   zhipu: {
-    name: '智谱 GLM (Flash 免费)',
+    name: '智谱 GLM',
+    icon: '🌊',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     model: 'glm-4-flash',
     vision: false,
-    signupUrl: 'https://open.bigmodel.cn'
+    capabilities: ['text'],
+    recommended: true,
+    tagline: '性价比最高的免费中文模型',
+    pricing: { tier: 'free-unlimited', label: '永久免费无限', detail: 'glm-4-flash 完全免费 · 注册送 2500 万 token(付费模型)' },
+    signupUrl: 'https://open.bigmodel.cn',
+    signupSteps: [
+      '打开 open.bigmodel.cn 注册账号',
+      '右上角头像 →「API Keys」→ 创建新密钥',
+      '复制 Key 粘贴到下方'
+    ]
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    icon: '🐋',
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    vision: false,
+    capabilities: ['text'],
+    tagline: '代码/推理强,价格极低',
+    pricing: { tier: 'paid-cheap', label: '¥0.14/M 输入 · ¥1.1/M 输出', detail: '业界最低价,新户送 10 元' },
+    signupUrl: 'https://platform.deepseek.com',
+    signupSteps: [
+      '打开 platform.deepseek.com 注册',
+      '左侧「API Keys」→ 创建',
+      '复制 Key 粘贴到下方'
+    ]
+  },
+  kimi: {
+    name: 'Kimi (月之暗面)',
+    icon: '🌙',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    model: 'moonshot-v1-8k',
+    vision: false,
+    capabilities: ['text'],
+    tagline: '中文长文本强,有免费额度',
+    pricing: { tier: 'free-trial', label: '新户免费 15 元额度', detail: '对个人友好' },
+    signupUrl: 'https://platform.moonshot.cn',
+    signupSteps: [
+      '打开 platform.moonshot.cn 注册',
+      '「API Key 管理」→ 新建',
+      '复制粘贴到下方'
+    ]
+  },
+  qwen: {
+    name: '通义千问',
+    icon: '☁',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-vl-plus',
+    vision: true,
+    capabilities: ['text', 'vision'],
+    tagline: '阿里云 · 支持识图',
+    pricing: { tier: 'free-trial', label: '新户免费 100 万 token', detail: 'qwen-vl-plus 支持识图,适合反推图片' },
+    signupUrl: 'https://bailian.console.aliyun.com',
+    signupSteps: [
+      '打开阿里云百炼 bailian.console.aliyun.com',
+      '开通 DashScope → 创建 API Key',
+      '复制粘贴到下方'
+    ]
+  },
+  openai: {
+    name: 'OpenAI',
+    icon: '🅾',
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+    vision: true,
+    capabilities: ['text', 'vision'],
+    tagline: '最稳 · 但国内需代理',
+    pricing: { tier: 'paid', label: 'gpt-4o-mini ¥0.15/M 输入', detail: '支持识图,英文生成顶级' },
+    signupUrl: 'https://platform.openai.com',
+    signupSteps: [
+      '需要海外手机/信用卡',
+      'platform.openai.com 创建 Key',
+      '国内访问需在 baseUrl 填写 proxy 地址'
+    ]
   },
   doubao: {
     name: '豆包 (字节方舟)',
+    icon: '🥣',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-    model: 'doubao-1-5-pro-32k-250115',
+    model: 'doubao-lite-32k',
     vision: false,
-    signupUrl: 'https://console.volcengine.com/ark'
+    capabilities: ['text'],
+    tagline: '需要在方舟控制台单独激活模型 ID',
+    warning: '⚠️ 方舟不是拿到 Key 就能用 · 需在 Console「在线推理」开通你要用的具体模型版本,然后把完整模型 ID(如 doubao-1-5-pro-32k-YYYYMMDD)填到下方 Model 字段',
+    pricing: { tier: 'paid', label: '按 token 计费', detail: '国内推理快,中文好;但激活流程繁琐,新手不推荐' },
+    signupUrl: 'https://console.volcengine.com/ark',
+    signupSteps: [
+      '打开 console.volcengine.com/ark',
+      '「模型广场」找到豆包系列 → 点击「开通」',
+      '「API Key 管理」创建 Key;回模型页面复制具体模型 ID(含日期后缀)填到下方'
+    ]
   }
 };
 

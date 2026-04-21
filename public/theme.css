@@ -1650,3 +1650,196 @@ kbd {
 .btn-primary, .btn-secondary {
   transition: all .18s cubic-bezier(.33,1.5,.68,1);
 }
+
+/* ============================================================
+   模型库 (Model Library) · 统一 Key 配置中心
+   ============================================================ */
+
+.lib-sec { margin-bottom: 20px; }
+.lib-sec-head {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--line);
+}
+.lib-sec-head h3 {
+  margin: 0; font-size: 14px; font-weight: 800;
+  color: var(--ink-900); letter-spacing: 0.2px;
+}
+.lib-sec-head .sub {
+  font-size: 11.5px; color: var(--ink-500); font-weight: 500;
+}
+.lib-sec-head .used-by {
+  margin-left: auto; font-size: 10.5px; color: var(--ink-500);
+  font-weight: 500;
+}
+
+.lib-grid {
+  display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.lib-card {
+  background: #fff; border: 1.5px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
+  transition: all .18s;
+  position: relative;
+}
+.lib-card.configured { border-color: var(--green-300); background: var(--green-50); }
+.lib-card.recommended::before {
+  content: '★ 推荐';
+  position: absolute; top: -8px; right: 10px;
+  background: linear-gradient(135deg, #ffaa2c, #ff7e2c);
+  color: #fff; font-size: 10px; font-weight: 800;
+  padding: 2px 8px; border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+.lib-card.open { grid-column: 1 / -1; border-color: var(--pink-400); background: #fff; box-shadow: 0 8px 32px rgba(214, 51, 108, 0.14); }
+
+.lib-card-head {
+  display: flex; align-items: center; gap: 10px;
+}
+.lib-card-head .ico {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--pink-50); display: inline-flex;
+  align-items: center; justify-content: center; font-size: 18px;
+  flex-shrink: 0;
+}
+.lib-card.configured .lib-card-head .ico { background: var(--green-100); }
+.lib-card-head .name {
+  font-size: 14px; font-weight: 700; color: var(--ink-900);
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+}
+.lib-card-head .status { margin-left: auto; flex-shrink: 0; }
+.lib-card-head .status.on {
+  background: var(--green-200); color: #1f9d55;
+  font-size: 10.5px; font-weight: 800;
+  padding: 2px 8px; border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+.lib-card-head .status.off {
+  color: var(--ink-500); font-size: 10.5px; font-weight: 600;
+}
+
+.lib-card .tagline {
+  font-size: 12px; color: var(--ink-700); line-height: 1.5;
+}
+
+.lib-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.lib-chip {
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600;
+  background: var(--pink-50); color: #d6336c; border: 1px solid var(--pink-100);
+}
+.lib-chip.cap { background: #e7f5ff; color: #1864ab; border-color: #b6d9f5; }
+.lib-chip.price-free { background: #d4f0dd; color: #1f9d55; border-color: #a8d8b8; }
+.lib-chip.price-cheap { background: #fff3bf; color: #8b6600; border-color: #ffd666; }
+.lib-chip.price-paid { background: #f1f3f5; color: #495057; border-color: #dee2e6; }
+
+.lib-used {
+  font-size: 11px; color: var(--ink-500); line-height: 1.5;
+  padding: 4px 0;
+}
+.lib-used strong { color: var(--ink-700); font-weight: 600; }
+
+.lib-warn {
+  background: #fff4e5; border: 1px solid #ffd08a; color: #8a5a00;
+  padding: 6px 10px; border-radius: 8px;
+  font-size: 11.5px; line-height: 1.5;
+}
+
+.lib-card-actions {
+  display: flex; gap: 6px; margin-top: 4px;
+}
+.lib-btn {
+  font-size: 12px; padding: 5px 12px; border-radius: 8px;
+  border: 1px solid var(--pink-200); background: #fff; color: #d6336c;
+  cursor: pointer; font-weight: 600; font-family: inherit;
+  transition: all .15s;
+}
+.lib-btn:hover { background: var(--pink-50); }
+.lib-btn.primary {
+  background: linear-gradient(135deg, #ff4785, #d6336c);
+  color: #fff; border: none; box-shadow: 0 3px 10px rgba(214, 51, 108, 0.22);
+}
+.lib-btn.primary:hover { transform: translateY(-1px); }
+.lib-btn.danger { color: #c92a2a; border-color: #ffc9c9; }
+.lib-btn.danger:hover { background: #fff5f5; }
+
+/* Inline config expansion */
+.lib-cfg {
+  margin-top: 8px; padding: 12px;
+  background: var(--pink-50);
+  border-radius: 10px; border: 1px solid var(--pink-100);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lib-cfg h4 {
+  margin: 0; font-size: 12px; font-weight: 800;
+  color: #d6336c; letter-spacing: 0.4px; text-transform: uppercase;
+}
+.lib-cfg ol {
+  margin: 0; padding-left: 20px; font-size: 12.5px; color: var(--ink-700); line-height: 1.7;
+}
+.lib-cfg ol li a { color: #d6336c; font-weight: 600; text-decoration: none; }
+.lib-cfg ol li a:hover { text-decoration: underline; }
+
+.lib-input-label {
+  font-size: 11.5px; font-weight: 700; color: var(--ink-700);
+  letter-spacing: 0.3px; margin-bottom: 4px; display: block;
+}
+.lib-input-label .req { color: #e11d48; }
+.lib-key-wrap { position: relative; }
+.lib-key-wrap input {
+  width: 100%; border: 1px solid var(--pink-200); background: #fff;
+  border-radius: 8px; padding: 8px 54px 8px 10px; font-size: 13px;
+  font-family: inherit; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.lib-key-wrap input:focus {
+  border-color: var(--pink-400);
+  box-shadow: 0 0 0 3px rgba(255, 139, 167, 0.18);
+}
+.lib-key-wrap .toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; cursor: pointer;
+  color: #d6336c; font-size: 11.5px; font-weight: 600; padding: 4px 8px;
+}
+
+.lib-adv { border-top: 1px dashed var(--pink-200); padding-top: 10px; }
+.lib-adv summary {
+  cursor: pointer; font-size: 11.5px; color: var(--ink-500); font-weight: 600;
+  padding: 2px 0;
+}
+.lib-adv summary:hover { color: #d6336c; }
+.lib-adv .row { margin-top: 8px; }
+
+.lib-cfg-actions {
+  display: flex; gap: 6px; margin-top: 4px;
+}
+.lib-cfg-actions .spacer { flex: 1; }
+
+/* Model chip (smart version) */
+.model-chip.compat-warn .chip-btn { border-color: #ffd08a; color: #8a5a00; }
+.model-chip.compat-fail .chip-btn { border-color: #ffc9c9; color: #c92a2a; }
+.chip-menu-item.incompat { opacity: 0.4; }
+.chip-menu-item.incompat::after { content: ' · 不支持本功能'; font-size: 10px; color: #c92a2a; }
+.chip-menu-item.cap-badges {
+  pointer-events: none; font-size: 10px; color: var(--ink-300); padding: 4px 12px;
+}
+
+/* Incompat banner inside module */
+.cap-banner {
+  background: linear-gradient(135deg, #fff4e5, #fff);
+  border: 1px solid #ffd08a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #8a5a00;
+  display: flex; align-items: center; gap: 10px;
+}
+.cap-banner .btn-inline {
+  background: linear-gradient(135deg, #ff4785, #d6336c);
+  color: #fff; border: none; padding: 4px 12px; border-radius: 6px;
+  cursor: pointer; font-weight: 600; font-size: 12px;
+  font-family: inherit; flex-shrink: 0;
+}

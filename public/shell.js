@@ -152,36 +152,48 @@ window.App = {
 
   // —— 可复用 UI: 模型选择芯片 ——
   // 插在 feature panel 顶部让用户为本 feature 切换模型
+  // 新增:按 feature.capabilities 自动过滤 + 标记不兼容
   createModelChip({ featureId, type = 'llm', onChange, requireCapability = null }) {
     const chip = document.createElement('div');
     chip.className = 'model-chip';
+
+    // Resolve required capabilities from feature manifest
+    const feature = (cachedFeatures || []).find(f => f.id === featureId);
+    const needs = feature?.capabilities?.needs || [];
+    const typeNeeds = needs.filter(n => n.kind?.startsWith(type === 'imageGen' ? 'imageGen' : 'llm'));
+    const needsVision = requireCapability === 'vision' || typeNeeds.some(n => n.kind === 'llm.vision' && n.required);
+    const needsT2I = typeNeeds.some(n => n.kind === 'imageGen.t2i' && n.required);
+
+    function providerSupports(p) {
+      const caps = p.capabilities || [];
+      if (type === 'imageGen') return needsT2I ? caps.includes('t2i') : true;
+      if (needsVision) return caps.includes('vision') || p.vision;
+      return caps.includes('text') || !caps.length;
+    }
+
     renderChip();
 
     function renderChip() {
-      const options = type === 'imageGen'
-        ? supportedImageProviders
-        : (requireCapability === 'vision'
-            ? supportedProviders.filter(p => p.vision)
-            : supportedProviders);
-
-      const configured = options.filter(p => {
-        const cfg = type === 'imageGen' ? loadImageConfig() : loadConfig();
-        return cfg.providers?.[p.id]?.apiKey;
-      });
+      const options = type === 'imageGen' ? supportedImageProviders : supportedProviders;
+      const cfg = type === 'imageGen' ? loadImageConfig() : loadConfig();
 
       const curId = type === 'imageGen'
         ? (App.getImageCredentialsFor(featureId)?.provider)
-        : (App.getCredentialsFor(featureId, { requireVision: requireCapability === 'vision' })?.provider);
+        : (App.getCredentialsFor(featureId, { requireVision: needsVision })?.provider);
       const curDef = options.find(p => p.id === curId);
 
-      const icon = type === 'imageGen' ? '🎨' : '🤖';
+      const icon = type === 'imageGen' ? '🎨' : '📝';
       const name = curDef?.name || '(未选择)';
       const missing = !curId;
+      const incompat = curDef && !providerSupports(curDef);
+
+      chip.className = 'model-chip' + (missing ? ' compat-fail' : incompat ? ' compat-warn' : '');
 
       chip.innerHTML = `
-        <button class="chip-btn ${missing ? 'warn' : ''}">
+        <button class="chip-btn ${missing ? 'warn' : ''}" title="${missing ? '未配置兼容的模型' : incompat ? '当前模型可能不支持本功能' : ''}">
           <span class="chip-icon">${icon}</span>
           <span class="chip-name">${escapeHtml(name)}</span>
+          ${incompat ? '<span style="color:#c85000;margin-left:4px">⚠</span>' : ''}
           <span class="chip-caret">▾</span>
         </button>
       `;
@@ -196,23 +208,39 @@ window.App = {
       const existing = document.querySelector('.chip-menu');
       if (existing) { existing.remove(); return; }
       const cfg = type === 'imageGen' ? loadImageConfig() : loadConfig();
-      const options = type === 'imageGen'
-        ? supportedImageProviders
-        : (requireCapability === 'vision'
-            ? supportedProviders.filter(p => p.vision)
-            : supportedProviders);
+      const options = type === 'imageGen' ? supportedImageProviders : supportedProviders;
 
       const menu = document.createElement('div');
       menu.className = 'chip-menu';
-      const opts = options.map(p => {
+
+      // Sort: compatible+configured first, compatible+unconfigured next, incompatible last
+      const sorted = [...options].sort((a, b) => {
+        const aComp = providerSupports(a), bComp = providerSupports(b);
+        const aKey = Boolean(cfg.providers?.[a.id]?.apiKey), bKey = Boolean(cfg.providers?.[b.id]?.apiKey);
+        if (aComp !== bComp) return aComp ? -1 : 1;
+        if (aKey !== bKey) return aKey ? -1 : 1;
+        return 0;
+      });
+
+      const opts = sorted.map(p => {
         const hasKey = Boolean(cfg.providers?.[p.id]?.apiKey);
-        const badge = p.vision ? '<span class="chip-badge">🖼️</span>' : '';
-        return `<div class="chip-menu-item ${hasKey ? '' : 'unconfigured'}" data-id="${p.id}">
-          ${escapeHtml(p.name)}${badge}${hasKey ? '' : '<span class="chip-dim">· 未配置</span>'}
+        const compat = providerSupports(p);
+        const badges = [];
+        if (p.capabilities?.includes('vision')) badges.push('<span class="chip-badge">🖼️</span>');
+        if (p.recommended && compat) badges.push('<span class="chip-badge" style="background:#ffb700;color:#fff">★</span>');
+        const note = !compat ? '' : (hasKey ? '' : '<span class="chip-dim">· 未配置</span>');
+        return `<div class="chip-menu-item ${hasKey ? '' : 'unconfigured'} ${compat ? '' : 'incompat'}" data-id="${p.id}" ${!compat ? 'title="此模型不支持本功能所需能力"' : ''}>
+          ${escapeHtml(p.name)}${badges.join('')}${note}
         </div>`;
       }).join('');
+
+      const capHint = typeNeeds.length
+        ? `本功能需要: ${typeNeeds.map(n => n.kind.split('.')[1]).join(' + ')}`
+        : '';
+
       menu.innerHTML = `
-        <div class="chip-menu-title">${type === 'imageGen' ? '🎨 图像模型' : '🤖 文本模型'} · 仅本模块生效</div>
+        <div class="chip-menu-title">${type === 'imageGen' ? '🎨 图像模型' : '📝 文本模型'} · 仅本模块生效</div>
+        ${capHint ? `<div class="chip-menu-item cap-badges">${capHint}</div>` : ''}
         ${opts}
         <div class="chip-menu-item chip-menu-clear" data-id="">使用全局默认</div>
       `;
@@ -500,18 +528,16 @@ function renderStatusAndSwitcher() {
   };
 }
 
-// ============== Settings modal ==============
+// ============== Settings modal (Model Library) ==============
 const modal = document.getElementById('settings-modal');
-const tabsEl = document.getElementById('provider-tabs');
-const formEl = document.getElementById('provider-form');
-let modalActiveTab = 'kimi';
+const libRoot = document.getElementById('lib-root');
+let modalActiveTab = 'zhipu';
 
 function bindSettingsModal() {
   btnOpenSettings.addEventListener('click', openSettingsModal);
   document.getElementById('settings-close').addEventListener('click', closeSettingsModal);
   document.getElementById('settings-cancel').addEventListener('click', closeSettingsModal);
   document.querySelector('#settings-modal .modal-backdrop').addEventListener('click', closeSettingsModal);
-  document.getElementById('settings-save').addEventListener('click', handleSave);
   document.getElementById('settings-export').addEventListener('click', handleExport);
   document.getElementById('settings-import').addEventListener('click', handleImport);
   document.addEventListener('keydown', (e) => {
@@ -528,282 +554,259 @@ function openSettingsAt(providerId, type = 'llm') {
     toast('供应商列表加载中,请稍后再试'); return;
   }
   modalActiveTabType = type;
-  if (type === 'search') {
-    modalActiveTab = providerId || supportedSearchProviders[0]?.id || 'serper';
-  } else if (type === 'imageGen') {
-    modalActiveTab = providerId || supportedImageProviders[0]?.id || 'google-imagen';
-  } else {
-    const cfg = loadConfig();
-    if (providerId && supportedProviders.find(p => p.id === providerId)) {
-      modalActiveTab = providerId;
-    } else {
-      modalActiveTab = (cfg.active && supportedProviders.find(p => p.id === cfg.active)) ? cfg.active : 'kimi';
-    }
-  }
-  renderTabs();
-  renderForm();
+  modalActiveTab = providerId || null;
+  renderModelLibrary();
   modal.hidden = false;
-  setTimeout(() => formEl.querySelector('input[type="password"]')?.focus(), 100);
+  // Auto-scroll to the requested provider card
+  if (providerId) {
+    setTimeout(() => {
+      const card = libRoot.querySelector(`.lib-card[data-pid="${providerId}"][data-ptype="${type}"]`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.querySelector('input[type="password"]')?.focus();
+      }
+    }, 100);
+  }
 }
 
 function closeSettingsModal() { modal.hidden = true; }
 
-function renderTabs() {
-  const cfg = loadConfig();
+// ---- Aggregate what each feature uses (for "用于:" labels) ----
+function featuresUsing(capKind) {
+  return (cachedFeatures || []).filter(f => {
+    const needs = f.capabilities?.needs || [];
+    return needs.some(n => n.kind === capKind);
+  });
+}
+const CAP_META = {
+  text: { label: '文本', icon: '📝' },
+  vision: { label: '识图', icon: '👁️' },
+  t2i: { label: '文生图', icon: '🎨' },
+  i2i: { label: '图生图', icon: '🔄' },
+  web: { label: '搜网页', icon: '🌐' },
+  images: { label: '搜图片', icon: '🖼️' }
+};
+
+function priceTag(def) {
+  const p = def.pricing; if (!p) return '';
+  const cls = p.tier === 'free-unlimited' || p.tier === 'free-trial' ? 'price-free'
+           : p.tier === 'paid-cheap' ? 'price-cheap' : 'price-paid';
+  return `<span class="lib-chip ${cls}">${escapeHtml(p.label || p.tier)}</span>`;
+}
+
+function capChips(def) {
+  return (def.capabilities || []).map(c => {
+    const m = CAP_META[c] || { label: c, icon: '' };
+    return `<span class="lib-chip cap">${m.icon} ${escapeHtml(m.label)}</span>`;
+  }).join('');
+}
+
+function usedByText(capKind) {
+  const features = featuresUsing(capKind);
+  if (!features.length) return '';
+  return `用于: ${features.map(f => `<strong>${escapeHtml(f.name)}</strong>`).join(' · ')}`;
+}
+
+// ---- Render the full model library ----
+function renderModelLibrary() {
+  const llmCfg = loadConfig();
   const searchCfg = loadSearchConfig();
-  tabsEl.innerHTML = '';
+  const imgCfg = loadImageConfig();
 
-  // LLM section
-  const llmSection = document.createElement('div');
-  llmSection.className = 'provider-section';
-  llmSection.innerHTML = '<div class="provider-section-title">🤖 LLM 模型</div>';
-  const llmTabs = document.createElement('div');
-  llmTabs.className = 'provider-tabs-row';
-  supportedProviders.forEach(p => {
-    const tab = document.createElement('button');
-    const isActive = modalActiveTabType === 'llm' && p.id === modalActiveTab;
-    tab.className = 'provider-tab' + (isActive ? ' active' : '');
-    const hasKey = Boolean(cfg.providers?.[p.id]?.apiKey);
-    tab.innerHTML = `${p.id === 'kimi' ? '⭐ ' : ''}${escapeHtml(p.name)}${hasKey ? ' <span class="dot-on"></span>' : ''}${p.vision ? ' <span class="badge-mini">🖼️</span>' : ''}`;
-    tab.addEventListener('click', () => {
-      modalActiveTabType = 'llm';
-      modalActiveTab = p.id;
-      renderTabs();
-      renderForm();
-    });
-    llmTabs.appendChild(tab);
+  // Sort: recommended first, then configured, then others
+  const sortProviders = (list, getCfg) => [...list].sort((a, b) => {
+    const ak = getCfg(a.id), bk = getCfg(b.id);
+    if (a.recommended && !b.recommended) return -1;
+    if (b.recommended && !a.recommended) return 1;
+    if (ak && !bk) return -1;
+    if (bk && !ak) return 1;
+    return 0;
   });
-  llmSection.appendChild(llmTabs);
-  tabsEl.appendChild(llmSection);
 
-  // Search section
-  if (supportedSearchProviders.length > 0) {
-    const searchSection = document.createElement('div');
-    searchSection.className = 'provider-section';
-    searchSection.innerHTML = '<div class="provider-section-title">🌐 搜索服务 <span class="section-sub">(用于表情包热梗搜索)</span></div>';
-    const searchTabs = document.createElement('div');
-    searchTabs.className = 'provider-tabs-row';
-    supportedSearchProviders.forEach(p => {
-      const tab = document.createElement('button');
-      const isActive = modalActiveTabType === 'search' && p.id === modalActiveTab;
-      tab.className = 'provider-tab' + (isActive ? ' active' : '');
-      const hasKey = Boolean(searchCfg.providers?.[p.id]?.apiKey);
-      tab.innerHTML = `${escapeHtml(p.name)}${hasKey ? ' <span class="dot-on"></span>' : ''}`;
-      tab.addEventListener('click', () => {
-        modalActiveTabType = 'search';
-        modalActiveTab = p.id;
-        renderTabs();
-        renderForm();
-      });
-      searchTabs.appendChild(tab);
+  const llmList = sortProviders(supportedProviders, id => llmCfg.providers?.[id]?.apiKey);
+  const imgList = sortProviders(supportedImageProviders, id => imgCfg.providers?.[id]?.apiKey);
+  const searchList = sortProviders(supportedSearchProviders, id => searchCfg.providers?.[id]?.apiKey);
+
+  libRoot.innerHTML = `
+    <div class="lib-sec">
+      <div class="lib-sec-head">
+        <h3>📝 文本模型 (LLM)</h3>
+        <span class="sub">文字生成 / 提示词 / 识图 (部分)</span>
+        <span class="used-by">${usedByText('llm.text')}</span>
+      </div>
+      <div class="lib-grid">
+        ${llmList.map(p => renderCard(p, 'llm', Boolean(llmCfg.providers?.[p.id]?.apiKey))).join('')}
+      </div>
+    </div>
+
+    <div class="lib-sec">
+      <div class="lib-sec-head">
+        <h3>🎨 图像生成</h3>
+        <span class="sub">文生图 / 后续会加图生图</span>
+        <span class="used-by">${usedByText('imageGen.t2i')}</span>
+      </div>
+      <div class="lib-grid">
+        ${imgList.map(p => renderCard(p, 'imageGen', Boolean(imgCfg.providers?.[p.id]?.apiKey))).join('')}
+      </div>
+    </div>
+
+    <div class="lib-sec">
+      <div class="lib-sec-head">
+        <h3>🔍 搜索服务</h3>
+        <span class="sub">搜真实笔记 / 热梗图</span>
+        <span class="used-by">${usedByText('search.web') || usedByText('search.images')}</span>
+      </div>
+      <div class="lib-grid">
+        ${searchList.map(p => renderCard(p, 'search', Boolean(searchCfg.providers?.[p.id]?.apiKey))).join('')}
+      </div>
+    </div>
+
+    <div class="lib-sec">
+      <div class="lib-sec-head">
+        <h3>✂ 抠图</h3>
+        <span class="sub">P1 规划中 · Replicate / 抠抠图 / 火山视觉</span>
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-500);padding:14px;background:var(--pink-50);border-radius:10px;line-height:1.6;">
+        P1 将接入 3 家抠图服务,支持生图后一键去背景。目前新生成的图暂不支持抠图,需要的话可以先用 <a href="https://www.koukoutu.com" target="_blank" rel="noopener" style="color:#d6336c">抠抠图</a> 在线版。
+      </div>
+    </div>
+  `;
+
+  // Bind handlers on all cards
+  libRoot.querySelectorAll('.lib-card').forEach(card => {
+    const pid = card.dataset.pid;
+    const ptype = card.dataset.ptype;
+    const btnToggle = card.querySelector('[data-action="toggle"]');
+    const btnClear = card.querySelector('[data-action="clear"]');
+    const btnSave = card.querySelector('[data-action="save"]');
+    const btnCancel = card.querySelector('[data-action="cancel"]');
+    const keyInput = card.querySelector('input[type="password"]');
+    const keyToggle = card.querySelector('.toggle');
+
+    btnToggle?.addEventListener('click', () => {
+      const isOpen = card.classList.contains('open');
+      libRoot.querySelectorAll('.lib-card.open').forEach(c => collapseCard(c));
+      if (!isOpen) expandCard(card);
     });
-    searchSection.appendChild(searchTabs);
-    tabsEl.appendChild(searchSection);
+    btnCancel?.addEventListener('click', () => collapseCard(card));
+    btnSave?.addEventListener('click', () => saveCard(pid, ptype, card));
+    btnClear?.addEventListener('click', () => {
+      if (!confirm('清除这个模型的 API Key?')) return;
+      saveCard(pid, ptype, card, { clear: true });
+    });
+    keyToggle?.addEventListener('click', () => {
+      if (!keyInput) return;
+      const isPwd = keyInput.type === 'password';
+      keyInput.type = isPwd ? 'text' : 'password';
+      keyToggle.textContent = isPwd ? '隐藏' : '显示';
+    });
+  });
+
+  // Open requested card
+  if (modalActiveTab) {
+    const card = libRoot.querySelector(`.lib-card[data-pid="${modalActiveTab}"][data-ptype="${modalActiveTabType}"]`);
+    if (card) expandCard(card);
   }
-
-  // Image gen section
-  if (supportedImageProviders.length > 0) {
-    const imgCfg = loadImageConfig();
-    const imgSection = document.createElement('div');
-    imgSection.className = 'provider-section';
-    imgSection.innerHTML = '<div class="provider-section-title">🎨 图像生成 <span class="section-sub">(封面图、表情包出图)</span></div>';
-    const imgTabs = document.createElement('div');
-    imgTabs.className = 'provider-tabs-row';
-    supportedImageProviders.forEach(p => {
-      const tab = document.createElement('button');
-      const isActive = modalActiveTabType === 'imageGen' && p.id === modalActiveTab;
-      tab.className = 'provider-tab' + (isActive ? ' active' : '');
-      const hasKey = Boolean(imgCfg.providers?.[p.id]?.apiKey);
-      tab.innerHTML = `${escapeHtml(p.name)}${hasKey ? ' <span class="dot-on"></span>' : ''}`;
-      tab.addEventListener('click', () => {
-        modalActiveTabType = 'imageGen';
-        modalActiveTab = p.id;
-        renderTabs();
-        renderForm();
-      });
-      imgTabs.appendChild(tab);
-    });
-    imgSection.appendChild(imgTabs);
-    tabsEl.appendChild(imgSection);
-  }
 }
 
-function renderForm() {
-  if (modalActiveTabType === 'search') return renderSearchForm();
-  if (modalActiveTabType === 'imageGen') return renderImageGenForm();
-  return renderLlmForm();
+function expandCard(card) {
+  card.classList.add('open');
+  const cfgBox = card.querySelector('.lib-cfg');
+  if (cfgBox) cfgBox.hidden = false;
+}
+function collapseCard(card) {
+  card.classList.remove('open');
+  const cfgBox = card.querySelector('.lib-cfg');
+  if (cfgBox) cfgBox.hidden = true;
 }
 
-function renderImageGenForm() {
-  const def = supportedImageProviders.find(p => p.id === modalActiveTab);
-  if (!def) { formEl.innerHTML = ''; return; }
-  const cfg = loadImageConfig();
-  const cur = cfg.providers?.[modalActiveTab] || {};
+function renderCard(def, ptype, configured) {
+  const cfgObj = ptype === 'imageGen' ? loadImageConfig() : (ptype === 'search' ? loadSearchConfig() : loadConfig());
+  const cur = cfgObj.providers?.[def.id] || {};
 
-  formEl.innerHTML = `
-    <div class="form-row">
-      <label class="form-label">API Key <span class="req">*</span></label>
-      <div class="key-input-wrap">
-        <input type="password" id="f-apikey" placeholder="${escapeHtml(`粘贴 ${def.name} 的 API Key`)}" value="${escapeHtml(cur.apiKey || '')}">
-        <button type="button" class="key-toggle" id="f-toggle">显示</button>
-      </div>
-      <div class="form-hint">
-        没有 Key？<a href="${escapeHtml(def.signupUrl)}" target="_blank" rel="noopener">前往 ${escapeHtml(def.name)} 申请 ↗</a>
-      </div>
-      <div class="form-hint" style="margin-top:8px;padding:8px;background:var(--pink-50);border-radius:8px;line-height:1.5;">
-        💡 ${escapeHtml(def.hint || '')}<br>
-        支持尺寸: ${(def.supportedRatios || []).join(' · ')}
-      </div>
-    </div>
+  const steps = (def.signupSteps || []).map(s => `<li>${escapeHtml(s)}</li>`).join('');
 
-    <details class="form-advanced">
-      <summary>高级设置</summary>
-      <div class="form-row">
-        <label class="form-label">Model</label>
-        <input type="text" id="f-model" placeholder="${escapeHtml(def.model)}" value="${escapeHtml(cur.model || '')}">
-        ${def.id === 'google-imagen' ? '<div class="form-hint">可选:imagen-3.0-generate-001(付费) / gemini-2.0-flash-preview-image-generation(免费)</div>' : ''}
-        ${def.id === 'jimeng' ? '<div class="form-hint">可选:doubao-seedream-3-0-t2i-250415 / doubao-seedream-4-0-250828(需开通)</div>' : ''}
+  return `
+    <div class="lib-card ${configured ? 'configured' : ''} ${def.recommended ? 'recommended' : ''}" data-pid="${escapeHtml(def.id)}" data-ptype="${escapeHtml(ptype)}">
+      <div class="lib-card-head">
+        <span class="ico">${def.icon || '🤖'}</span>
+        <div class="name">${escapeHtml(def.name)}</div>
+        <div class="status">
+          ${configured ? '<span class="status on">✓ 已配置</span>' : '<span class="status off">未配置</span>'}
+        </div>
       </div>
-      <div class="form-row">
-        <label class="form-label">Base URL</label>
-        <input type="text" id="f-baseurl" placeholder="${escapeHtml(def.baseUrl)}" value="${escapeHtml(cur.baseUrl || '')}">
+      ${def.tagline ? `<div class="tagline">${escapeHtml(def.tagline)}</div>` : ''}
+      <div class="lib-chips">
+        ${capChips(def)}
+        ${priceTag(def)}
       </div>
-    </details>
-  `;
+      ${def.warning ? `<div class="lib-warn">${escapeHtml(def.warning)}</div>` : ''}
+      <div class="lib-card-actions">
+        <button class="lib-btn primary" data-action="toggle">${configured ? '⚙ 查看 / 修改' : '⚡ 配置 Key'}</button>
+        ${def.signupUrl ? `<a class="lib-btn" href="${escapeHtml(def.signupUrl)}" target="_blank" rel="noopener" style="text-decoration:none">${configured ? '官网' : '去申请 ↗'}</a>` : ''}
+      </div>
 
-  document.getElementById('f-toggle').addEventListener('click', () => {
-    const inp = document.getElementById('f-apikey');
-    const isPwd = inp.type === 'password';
-    inp.type = isPwd ? 'text' : 'password';
-    document.getElementById('f-toggle').textContent = isPwd ? '隐藏' : '显示';
-  });
-}
-
-function renderSearchForm() {
-  const def = supportedSearchProviders.find(p => p.id === modalActiveTab);
-  if (!def) { formEl.innerHTML = ''; return; }
-  const cfg = loadSearchConfig();
-  const cur = cfg.providers?.[modalActiveTab] || {};
-
-  formEl.innerHTML = `
-    <div class="form-row">
-      <label class="form-label">API Key <span class="req">*</span></label>
-      <div class="key-input-wrap">
-        <input type="password" id="f-apikey" placeholder="${escapeHtml(`粘贴 ${def.name} 的 API Key`)}" value="${escapeHtml(cur.apiKey || '')}">
-        <button type="button" class="key-toggle" id="f-toggle">显示</button>
-      </div>
-      <div class="form-hint">
-        没有 Key？<a href="${escapeHtml(def.signupUrl)}" target="_blank" rel="noopener">前往 ${escapeHtml(def.name)} 申请 ↗</a>
-        <span style="color:var(--green-500);margin-left:8px">（${escapeHtml(def.freeTier)}）</span>
-      </div>
-      <div class="form-hint" style="margin-top:8px;padding:8px;background:var(--pink-50);border-radius:8px;">
-        💡 Serper 是基于 Google Images 的搜索服务,邮箱注册即可,无需信用卡。
+      <div class="lib-cfg" hidden>
+        ${steps ? `<div><h4>3 步拿 Key</h4><ol>${steps}</ol></div>` : ''}
+        <div>
+          <label class="lib-input-label">API Key <span class="req">*</span></label>
+          <div class="lib-key-wrap">
+            <input type="password" class="lib-f-apikey" placeholder="粘贴你的 API Key" value="${escapeHtml(cur.apiKey || '')}">
+            <button class="toggle" type="button">显示</button>
+          </div>
+        </div>
+        <details class="lib-adv">
+          <summary>高级设置 (一般不用改)</summary>
+          <div class="row">
+            <label class="lib-input-label">Model ID${def.id === 'doubao' ? ' <span style="color:#c92a2a">· 必填你开通的具体版本</span>' : ''}</label>
+            <div class="lib-key-wrap"><input type="text" class="lib-f-model" placeholder="${escapeHtml(def.model || '')}" value="${escapeHtml(cur.model || '')}"></div>
+          </div>
+          <div class="row">
+            <label class="lib-input-label">Base URL</label>
+            <div class="lib-key-wrap"><input type="text" class="lib-f-baseurl" placeholder="${escapeHtml(def.baseUrl || '')}" value="${escapeHtml(cur.baseUrl || '')}"></div>
+          </div>
+        </details>
+        <div class="lib-cfg-actions">
+          ${configured ? '<button class="lib-btn danger" data-action="clear">🗑 清除</button>' : ''}
+          <span class="spacer"></span>
+          <button class="lib-btn" data-action="cancel">取消</button>
+          <button class="lib-btn primary" data-action="save">💾 保存</button>
+        </div>
       </div>
     </div>
   `;
-
-  document.getElementById('f-toggle').addEventListener('click', () => {
-    const inp = document.getElementById('f-apikey');
-    const isPwd = inp.type === 'password';
-    inp.type = isPwd ? 'text' : 'password';
-    document.getElementById('f-toggle').textContent = isPwd ? '隐藏' : '显示';
-  });
 }
 
-function renderLlmForm() {
-  const def = supportedProviders.find(p => p.id === modalActiveTab);
-  if (!def) { formEl.innerHTML = ''; return; }
-  const cfg = loadConfig();
-  const cur = cfg.providers?.[modalActiveTab] || {};
+function saveCard(pid, ptype, card, { clear = false } = {}) {
+  const apiKey = clear ? '' : (card.querySelector('.lib-f-apikey')?.value.trim() || '');
+  const model = card.querySelector('.lib-f-model')?.value.trim() || '';
+  const baseUrl = card.querySelector('.lib-f-baseurl')?.value.trim() || '';
 
-  formEl.innerHTML = `
-    <div class="form-row">
-      <label class="form-label">API Key <span class="req">*</span></label>
-      <div class="key-input-wrap">
-        <input type="password" id="f-apikey" placeholder="${escapeHtml(`粘贴 ${def.name} 的 API Key`)}" value="${escapeHtml(cur.apiKey || '')}">
-        <button type="button" class="key-toggle" id="f-toggle">显示</button>
-      </div>
-      <div class="form-hint">
-        没有 Key？<a href="${escapeHtml(def.signupUrl)}" target="_blank" rel="noopener">前往 ${escapeHtml(def.name)} 申请 ↗</a>
-        ${def.id === 'kimi' ? '<span style="color:var(--green-500);margin-left:8px">（推荐：新用户送额度）</span>' : ''}
-        ${def.vision ? '<span class="badge-vision">🖼️ 支持识图</span>' : ''}
-      </div>
-    </div>
-
-    <details class="form-advanced">
-      <summary>高级设置（一般不用改）</summary>
-      <div class="form-row">
-        <label class="form-label">Base URL</label>
-        <input type="text" id="f-baseurl" placeholder="${escapeHtml(def.baseUrl)}" value="${escapeHtml(cur.baseUrl || '')}">
-      </div>
-      <div class="form-row">
-        <label class="form-label">Model</label>
-        <input type="text" id="f-model" placeholder="${escapeHtml(def.model)}" value="${escapeHtml(cur.model || '')}">
-        ${def.id === 'kimi' ? '<div class="form-hint">可选: moonshot-v1-8k / 32k / 128k / auto</div>' : ''}
-      </div>
-    </details>
-  `;
-
-  document.getElementById('f-toggle').addEventListener('click', () => {
-    const inp = document.getElementById('f-apikey');
-    const isPwd = inp.type === 'password';
-    inp.type = isPwd ? 'text' : 'password';
-    document.getElementById('f-toggle').textContent = isPwd ? '隐藏' : '显示';
-  });
-}
-
-function handleSave() {
-  const apiKey = document.getElementById('f-apikey').value.trim();
-
-  if (modalActiveTabType === 'search') {
+  if (ptype === 'search') {
     const cfg = loadSearchConfig();
-    if (!apiKey) {
-      delete cfg.providers[modalActiveTab];
-      toast('已清除该搜索服务配置');
-    } else {
-      cfg.providers[modalActiveTab] = { apiKey };
-      cfg.active = modalActiveTab;
-      toast(`✓ ${supportedSearchProviders.find(p => p.id === modalActiveTab).name} 已保存`);
-    }
+    if (!apiKey) { delete cfg.providers[pid]; toast('已清除'); }
+    else { cfg.providers[pid] = { apiKey }; cfg.active = pid; toast('✓ 已保存'); }
     saveSearchConfig(cfg);
-    renderStatusAndSwitcher();
-    closeSettingsModal();
-    return;
-  }
-
-  if (modalActiveTabType === 'imageGen') {
-    const baseUrl = document.getElementById('f-baseurl')?.value.trim() || '';
-    const model = document.getElementById('f-model')?.value.trim() || '';
+  } else if (ptype === 'imageGen') {
     const cfg = loadImageConfig();
-    if (!apiKey) {
-      delete cfg.providers[modalActiveTab];
-      toast('已清除该图像模型配置');
-    } else {
-      cfg.providers[modalActiveTab] = { apiKey, baseUrl, model };
-      cfg.active = modalActiveTab;
-      toast(`✓ ${supportedImageProviders.find(p => p.id === modalActiveTab).name} 已保存`);
-    }
+    if (!apiKey) { delete cfg.providers[pid]; toast('已清除'); }
+    else { cfg.providers[pid] = { apiKey, baseUrl, model }; cfg.active = pid; toast('✓ 已保存'); }
     saveImageConfig(cfg);
-    renderStatusAndSwitcher();
-    closeSettingsModal();
-    return;
-  }
-
-  const baseUrl = document.getElementById('f-baseurl')?.value.trim() || '';
-  const model = document.getElementById('f-model')?.value.trim() || '';
-  const cfg = loadConfig();
-  if (!apiKey) {
-    delete cfg.providers[modalActiveTab];
-    toast('已清除该供应商配置');
   } else {
-    cfg.providers[modalActiveTab] = { apiKey, baseUrl, model };
-    cfg.active = modalActiveTab;
-    toast(`✓ ${supportedProviders.find(p => p.id === modalActiveTab).name} 已保存`);
+    const cfg = loadConfig();
+    if (!apiKey) { delete cfg.providers[pid]; toast('已清除'); }
+    else { cfg.providers[pid] = { apiKey, baseUrl, model }; cfg.active = pid; toast('✓ 已保存'); }
+    saveConfig(cfg);
   }
-  saveConfig(cfg);
   renderStatusAndSwitcher();
-  closeSettingsModal();
+  renderModelLibrary();
 }
+
+// Back-compat stubs (old code path references)
+function renderTabs() { renderModelLibrary(); }
+function renderForm() { /* no-op: rendered inside renderModelLibrary */ }
+
+
 
 function handleExport() {
   const cfg = loadConfig();

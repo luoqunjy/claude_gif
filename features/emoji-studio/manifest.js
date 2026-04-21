@@ -12,5 +12,12 @@ export default {
   ui: {
     panel: 'features/emoji-studio/ui/panel.html',
     script: 'features/emoji-studio/ui/panel.js'
+  },
+  capabilities: {
+    needs: [
+      { kind: 'llm.text', purpose: 'AI 按模板填词', required: true },
+      { kind: 'imageGen.t2i', purpose: '批量出图', required: true },
+      { kind: 'llm.vision', purpose: '反推图片按模板回填字段', required: false }
+    ]
   }
 };
