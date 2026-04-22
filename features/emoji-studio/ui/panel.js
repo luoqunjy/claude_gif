@@ -6,6 +6,8 @@
  * P2 预留: 动画化 GIF tab (placeholder)
  */
 
+import { mountCompressModal } from './gif-compress.js';
+
 const LS_TPL = 'emojiStudio.templates.v1';
 const LS_CHARS = 'emojiStudio.characters.v1';
 const CHARS_MAX = 15;
@@ -20,6 +22,24 @@ export async function mount(root) {
     $('#es-img-chip').appendChild(window.App.createModelChip({ featureId: 'emoji-studio', type: 'imageGen' }));
   }
   $('#es-btn-settings').addEventListener('click', () => window.App?.openSettings?.());
+
+  // ---- GIF 压缩弹窗(懒加载 gif.js 后再打开) ----
+  let compressModal = null;
+  async function openGifCompress() {
+    // 确保 window.GIF 已加载(与 exportGif 共用同一份库)
+    if (typeof window.GIF === 'undefined') {
+      await new Promise((ok, bad) => {
+        const s = document.createElement('script');
+        s.src = '/features/emoji-studio/ui/gif.js';
+        s.onload = ok;
+        s.onerror = () => bad(new Error('gif.js 加载失败'));
+        document.head.appendChild(s);
+      }).catch(err => alert(err.message));
+    }
+    if (!compressModal) compressModal = mountCompressModal();
+    compressModal.open();
+  }
+  $('#es-btn-compress')?.addEventListener('click', openGifCompress);
 
   // ---- Load templates (presets from backend + user localStorage overlay) ----
   let presets = [];
@@ -920,10 +940,18 @@ export async function mount(root) {
   // =========== Animation (P2) ===========
 
   // State
+  const LS_ANIM_FAVS = 'emojiStudio.animFavs.v1';
+  const loadAnimFavs = () => { try { return new Set(JSON.parse(localStorage.getItem(LS_ANIM_FAVS) || '[]')); } catch { return new Set(); } };
+  const saveAnimFavs = (set) => localStorage.setItem(LS_ANIM_FAVS, JSON.stringify([...set]));
+
   let animState = {
     image: null,          // dataURL
     sourcePrompt: '',
     presets: [],          // loaded from /api/emoji-studio/animations
+    categories: ['全部','⭐收藏','自定义'],
+    activeCat: '全部',
+    search: '',
+    favs: loadAnimFavs(),
     selectedId: null,     // preset id OR 'custom'
     customCode: '',       // user's custom function body
     customSuggestions: [],// 3 LLM suggestion strings
@@ -932,9 +960,18 @@ export async function mount(root) {
     rafId: null
   };
 
-  // Load preset library once
-  fetch('/api/emoji-studio/animations').then(r => r.json()).then(list => {
-    animState.presets = list || [];
+  // Load preset library once. 新格式 {presets, categories},旧格式 Array 兼容
+  fetch('/api/emoji-studio/animations').then(r => r.json()).then(data => {
+    if (Array.isArray(data)) {
+      animState.presets = data;
+    } else {
+      animState.presets = data.presets || [];
+      if (Array.isArray(data.categories) && data.categories.length) {
+        animState.categories = data.categories;
+      }
+    }
+    // 若右侧已渲染,刷新
+    if (document.querySelector('.es-anim-stage')) renderAnimRight();
   }).catch(() => {});
 
   // Bridge: called when user clicks 🎬 on an image in Tab1/Tab2
@@ -1015,14 +1052,31 @@ export async function mount(root) {
           </div>
 
           <div>
-            <div class="es-anim-section-title">📚 全部动效库 · ${animState.presets.length}</div>
-            <div class="es-anim-lib-grid" id="es-anim-lib">
-              ${animState.presets.map(p => `
-                <div class="es-anim-lib-item ${animState.selectedId === p.id ? 'active' : ''}" data-pid="${escapeAttr(p.id)}">
+            <div class="es-anim-section-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span>📚 全部动效库 · ${filteredPresets().length}/${animState.presets.length}</span>
+              <input type="search" id="es-anim-search" placeholder="🔍 搜索名称/关键词..." value="${escapeAttr(animState.search)}"
+                style="margin-left:auto;padding:4px 10px;border:1px solid var(--ink-200,#e5e7eb);border-radius:6px;font-size:12px;width:200px">
+            </div>
+            <div id="es-anim-cats" style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 10px">
+              ${animState.categories.map(c => `
+                <button class="es-anim-cat-btn" data-cat="${escapeAttr(c)}"
+                  style="padding:4px 10px;border:1px solid ${animState.activeCat===c?'var(--accent,#ec4899)':'var(--ink-200,#e5e7eb)'};
+                  background:${animState.activeCat===c?'var(--accent,#ec4899)':'transparent'};
+                  color:${animState.activeCat===c?'#fff':'var(--ink-700,#374151)'};
+                  border-radius:14px;font-size:12px;cursor:pointer">${escapeHtml(c)}</button>
+              `).join('')}
+            </div>
+            <div class="es-anim-lib-grid" id="es-anim-lib" style="max-height:360px;overflow-y:auto;padding:2px">
+              ${filteredPresets().map(p => {
+                const isFav = animState.favs.has(p.id);
+                return `
+                <div class="es-anim-lib-item ${animState.selectedId === p.id ? 'active' : ''}" data-pid="${escapeAttr(p.id)}" style="position:relative">
                   <div class="emj">${p.emoji}</div>
                   <div class="n">${escapeHtml(p.name)}</div>
+                  <span class="es-anim-fav-btn" data-fav="${escapeAttr(p.id)}"
+                    style="position:absolute;top:2px;right:2px;font-size:12px;cursor:pointer;opacity:${isFav?1:0.3};line-height:1">${isFav?'⭐':'☆'}</span>
                 </div>
-              `).join('')}
+              `;}).join('')}
             </div>
           </div>
         </div>
@@ -1031,8 +1085,64 @@ export async function mount(root) {
 
     // Wire handlers
     out.querySelectorAll('.es-anim-lib-item').forEach(el => {
-      el.addEventListener('click', () => selectAnimation(el.dataset.pid));
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('[data-fav]')) return; // 收藏按钮优先
+        selectAnimation(el.dataset.pid);
+      });
     });
+    out.querySelectorAll('[data-fav]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = el.dataset.fav;
+        if (animState.favs.has(id)) animState.favs.delete(id);
+        else animState.favs.add(id);
+        saveAnimFavs(animState.favs);
+        renderAnimRight();
+      });
+    });
+    out.querySelectorAll('.es-anim-cat-btn').forEach(el => {
+      el.addEventListener('click', () => {
+        animState.activeCat = el.dataset.cat;
+        renderAnimRight();
+      });
+    });
+    const searchEl = $('#es-anim-search');
+    if (searchEl) {
+      searchEl.addEventListener('input', () => {
+        animState.search = searchEl.value;
+        // debounce:只刷新列表容器,避免输入框失焦
+        const lib = $('#es-anim-lib');
+        if (!lib) return;
+        lib.innerHTML = filteredPresets().map(p => {
+          const isFav = animState.favs.has(p.id);
+          return `
+            <div class="es-anim-lib-item ${animState.selectedId === p.id ? 'active' : ''}" data-pid="${p.id}" style="position:relative">
+              <div class="emj">${p.emoji}</div>
+              <div class="n">${(p.name||'').replace(/[<>&"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</div>
+              <span class="es-anim-fav-btn" data-fav="${p.id}"
+                style="position:absolute;top:2px;right:2px;font-size:12px;cursor:pointer;opacity:${isFav?1:0.3};line-height:1">${isFav?'⭐':'☆'}</span>
+            </div>
+          `;
+        }).join('');
+        // 重绑事件
+        lib.querySelectorAll('.es-anim-lib-item').forEach(el => {
+          el.addEventListener('click', (e) => {
+            if (e.target.closest('[data-fav]')) return;
+            selectAnimation(el.dataset.pid);
+          });
+        });
+        lib.querySelectorAll('[data-fav]').forEach(el => {
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = el.dataset.fav;
+            if (animState.favs.has(id)) animState.favs.delete(id);
+            else animState.favs.add(id);
+            saveAnimFavs(animState.favs);
+            renderAnimRight();
+          });
+        });
+      });
+    }
     out.querySelectorAll('.es-anim-reco-card').forEach(el => {
       el.addEventListener('click', () => selectAnimation(el.dataset.pid));
     });
@@ -1045,6 +1155,27 @@ export async function mount(root) {
     $('#es-anim-custom-gen')?.addEventListener('click', generateCustomAnim);
 
     if (animState.selectedId && animState.image) startPlayer();
+  }
+
+  function filteredPresets() {
+    let list = animState.presets;
+    // 分类过滤
+    if (animState.activeCat === '⭐收藏') {
+      list = list.filter(p => animState.favs.has(p.id));
+    } else if (animState.activeCat === '自定义') {
+      list = []; // 自定义动效走上方 AI 自定义面板
+    } else if (animState.activeCat !== '全部') {
+      list = list.filter(p => p.cat === animState.activeCat);
+    }
+    // 搜索过滤(名称 + 关键词 tags + emoji)
+    if (animState.search.trim()) {
+      const q = animState.search.trim().toLowerCase();
+      list = list.filter(p => {
+        const hay = [p.name, p.emoji, p.cat, ...(p.tags||[])].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    return list;
   }
 
   function renderRecoCards() {

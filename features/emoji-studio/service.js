@@ -305,7 +305,24 @@ const ANIM_PRESETS = [
     code: 'return {scaleX:1+Math.sin(t*Math.PI*2)*0.05, scaleY:1+Math.cos(t*Math.PI*2)*0.05, rotation:Math.sin(t*Math.PI*2)*3};' }
 ];
 
-export function animationPresets() { return ANIM_PRESETS; }
+// 合并 15 个新式 ANIM_PRESETS + 158 个旧 gif-maker BUILTIN_EFFECTS(通过 fnToCode 转码)
+import { BUILTIN_EFFECTS, fnToCode, CATEGORIES as EFFECT_CATEGORIES } from './effects-library.js';
+
+function builtinToPreset(bi) {
+  return {
+    id: bi.id,
+    name: bi.name,
+    emoji: bi.emoji,
+    cat: bi.cat,
+    tags: (bi.keys || '').split(/\s+/).filter(Boolean),
+    code: fnToCode(bi.fn)
+  };
+}
+
+export function animationPresets() {
+  const merged = [...ANIM_PRESETS, ...BUILTIN_EFFECTS.map(builtinToPreset)];
+  return { presets: merged, categories: EFFECT_CATEGORIES };
+}
 
 // --- Brief: 给张图 + prompt,LLM 挑 3 个适配动效 + 给 3 条 AI 自定义建议 ---
 
