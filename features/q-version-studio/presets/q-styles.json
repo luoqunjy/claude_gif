@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-22",
+  "presets": [
+    {
+      "id": "designer-toy-mascot",
+      "name": "潮玩萌宠",
+      "emoji": "🧸",
+      "silhouette_type": "mascot",
+      "family": "3D 质感 IP / 潮玩风",
+      "cover": "粉嫩 3D 立体萌宠,头顶嫩芽,绒毛质感",
+      "description": "Labubu / Molly / 毛茸茸萌宠风格,非人形吉祥物,3D 渲染感",
+      "stylePresetText": "风格:3D 质感 IP / 潮玩萌宠风。形体:mascot(非人形吉祥物,圆润体型,手脚极短)。头身比约 1:1(几乎没有脖子,圆滚滚)。脸:圆脸,超大水汪眼带双高光,小鼻小嘴。线条:无描边,3D 立体渲染。上色:柔和奶油渐变,粉嫩/绿嫩等低饱和色调。关键描述词:毛绒绒、糯叽叽、软萌、pastel、3D render、cute mascot"
+    },
+    {
+      "id": "soft-anime-3head",
+      "name": "日漫萌系 3头身",
+      "emoji": "🎀",
+      "silhouette_type": "human",
+      "family": "日漫萌系 3头身",
+      "cover": "3 头身软萌少女,长发+眼镜+日常休闲",
+      "description": "日常系轻漫画 Q版,3 头身,五官保留动漫少女的可爱感,整体软绵",
+      "stylePresetText": "风格:日漫萌系 3头身。形体:human(人形)。头身比约 3:1,身体有基本比例但整体缩短。脸:圆润椭圆脸,大眼睛带 2 处高光,淡淡粉腮红,五官精致接近正常动漫比例。线条:细腻深褐色描边。上色:平涂+少量柔和阴影。关键描述词:soft anime, daily life chibi, gentle chibi, soft shading"
+    },
+    {
+      "id": "lulu-style",
+      "name": "露露风",
+      "emoji": "🌸",
+      "silhouette_type": "human",
+      "family": "露露风(专属 IP)",
+      "cover": "露露官方视觉:温柔圆润+标志性腮红+奶茶色调",
+      "description": "用户的 IP 角色露露的官方风格,用于露露系列衍生物保持一致性",
+      "stylePresetText": "风格:露露风(用户专属 IP)。形体:human。头身比 2.5,大头圆脸。脸:正圆脸,超大圆眼+单白色菱形主高光+小圆副高光,粉色漩涡腮红(标志性),小点鼻+小弧形微笑嘴。线条:柔和棕色/淡褐色描边,粗细均匀。上色:平涂色块,无写实阴影,奶茶/米白/粉嫩低饱和暖色系。整体气质:温柔、可爱、日常、疗愈。关键描述词:lulu style, gentle chibi, pink swirl blush, milk tea palette, flat coloring"
+    },
+    {
+      "id": "chiikawa-minimal",
+      "name": "Chiikawa 极简",
+      "emoji": "🐾",
+      "silhouette_type": "human",
+      "family": "Chiikawa 风",
+      "cover": "极简线条+迷你身体+憨萌傻眼",
+      "description": "吉伊卡哇风格,2 头身,极简线条,表情呆萌",
+      "stylePresetText": "风格:Chiikawa(吉伊卡哇)极简风。形体:human 但偏向吉祥物感。头身比 2:1,超大头+几乎没有脖子,迷你身体,手脚短胖。脸:正圆脸,圆圆小眼带一点白光,张嘴憨萌表情,无明显鼻子。线条:细腻黑色描边,粗细均匀。上色:平涂奶油色系,无阴影。关键描述词:chiikawa style, ultra minimal, tiny chibi, innocent expression, pastel cream"
+    },
+    {
+      "id": "line-friends",
+      "name": "LINE 友邦风",
+      "emoji": "🦊",
+      "silhouette_type": "human",
+      "family": "LINE Friends 风",
+      "cover": "大色块+简洁几何脸+亮色",
+      "description": "LINE Friends 风格,大色块平涂,几何感脸部,明快配色",
+      "stylePresetText": "风格:LINE Friends 风。形体:human 但偏向吉祥物感。头身比 2:1,头大身小。脸:椭圆或方圆脸,极简几何化眼睛(实心圆点+偶尔高光),无明显鼻子,小 U 形嘴。线条:粗黑描边,转折干净。上色:高纯度大色块,无渐变,无阴影。关键描述词:LINE Friends style, bold outline, flat geometric face, bright pastel blocks"
+    },
+    {
+      "id": "chinese-traditional",
+      "name": "国风 Q版",
+      "emoji": "🏮",
+      "silhouette_type": "human",
+      "family": "国风 Q版",
+      "cover": "Q版+国风配色+水墨感",
+      "description": "国风 Q版,带汉服/水墨/中国红等元素的萌系角色",
+      "stylePresetText": "风格:国风 Q版。形体:human。头身比 2.5:1。脸:圆脸带一丝古风审美,大眼+淡淡粉颊,五官精致。线条:毛笔感棕褐色线条,有笔锋,粗细变化。上色:中国传统色(胭脂/青花/靛蓝/朱砂/米黄),平涂为主,偶尔淡淡晕染。关键描述词:chinese traditional chibi, ink wash feel, hanfu, traditional color palette, brush stroke outline"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+<div class="panel-header">
+  <h1>🎨 Q版 Prompt 工坊</h1>
+  <p>上传立绘 + 选预设风格(或传自己的 Q版 参考图)→ 一键生成 5 家主流 AI 作图工具的专属 Prompt,点按钮跳转复制/预填。</p>
+  <div class="cd-header">
+    <div class="cd-chips">
+      <div id="qv-llm-chip"></div>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- 左栏:输入 -->
+  <section class="card">
+    <h3>1️⃣ 角色图(必填)</h3>
+    <input type="file" id="qv-char-file" accept="image/*">
+    <div id="qv-char-preview-wrap" style="margin-top:10px"></div>
+    <p class="hint" style="margin-top:6px">可拖拽 / 选择文件 / ⌘V 粘贴。支持真人照片、二次元立绘、Q版 草图等任意形态。</p>
+
+    <label class="field-label" style="margin-top:10px">角色补充描述(可选)</label>
+    <textarea id="qv-char-text" rows="2" placeholder="例:我自己的真人侧脸照,男,短发,穿黑色冲锋衣"></textarea>
+
+    <h3 style="margin-top:22px">2️⃣ 风格来源(二选一)</h3>
+
+    <label class="field-label">方式 A:从预设风格中选</label>
+    <div class="style-chips" id="qv-preset-list"></div>
+
+    <label class="field-label" style="margin-top:12px">方式 B:上传你喜欢的 Q版 参考图(优先级高于预设)</label>
+    <input type="file" id="qv-style-file" accept="image/*">
+    <div id="qv-style-preview-wrap" style="margin-top:10px"></div>
+
+    <h3 style="margin-top:22px">3️⃣ 目标作图模型(多选)</h3>
+    <div class="style-chips" id="qv-models"></div>
+
+    <button class="btn btn-primary btn-full" id="qv-btn-generate" style="margin-top:18px">✨ 生成 Q版 Prompt</button>
+
+    <div class="info-box" style="margin-top:10px">
+      ⚠️ 本功能需要<strong>支持识图的 LLM</strong>(通义千问 / OpenAI / Kimi-Vision 等)。当前模块模型若不支持识图会自动尝试备选。
+    </div>
+  </section>
+
+  <!-- 右栏:结果 -->
+  <section class="card">
+    <h3>📦 生成结果</h3>
+    <div id="qv-output">
+      <div class="empty"><div class="empty-icon">🎨</div>左侧填好,点"生成 Q版 Prompt"</div>
+    </div>
+  </section>
+</div>
