@@ -266,3 +266,123 @@ export async function reverse({ image, template, provider, credentials }) {
   if (!parsed) return { error: 'llm_parse_failed', raw };
   return parsed;
 }
+
+// ============ 动画化 GIF · P2 ============
+//
+// 预设动画库: 每条是 Canvas transform 函数体代码(t=0~1 进度, return {x,y,scaleX,scaleY,rotation,alpha})
+// 带 emotionTags 方便 LLM 推荐
+
+const ANIM_PRESETS = [
+  { id: 'bounce-y',   name: '上下弹跳',  emoji: '🦘', tags: ['excited','happy','playful','big-laugh'],
+    code: 'const s=Math.sin(t*Math.PI*2); return {y: s*15};' },
+  { id: 'shake',      name: '疯狂抖动',  emoji: '😵', tags: ['shocked','cold','panic','angry'],
+    code: 'return {x: Math.sin(t*Math.PI*20)*6, y: Math.cos(t*Math.PI*18)*4};' },
+  { id: 'pop',        name: '爆炸弹出',  emoji: '💥', tags: ['surprise','reveal','excited','impact'],
+    code: 'const s = t<0.3 ? 0.3+t/0.3*0.85 : 1-(t-0.3)/0.7*0.15; return {scaleX:s*1.15,scaleY:s*1.15};' },
+  { id: 'swing',      name: '左右摇摆',  emoji: '🎪', tags: ['playful','relaxed','happy'],
+    code: 'return {rotation: Math.sin(t*Math.PI*2)*10};' },
+  { id: 'pulse',      name: '心跳脉动',  emoji: '❤️', tags: ['love','caring','emphasis','warm'],
+    code: 'const s=1+Math.sin(t*Math.PI*4)*0.1; return {scaleX:s,scaleY:s};' },
+  { id: 'spin',       name: '旋转',      emoji: '🌀', tags: ['dizzy','confused','playful'],
+    code: 'return {rotation: t*360};' },
+  { id: 'flash',      name: '闪烁',      emoji: '✨', tags: ['alert','magic','ghost','blink'],
+    code: 'return {alpha: 0.3+Math.abs(Math.sin(t*Math.PI*6))*0.7};' },
+  { id: 'zoom',       name: '放大呼吸',  emoji: '🔍', tags: ['dramatic','breathe','focus','emphasis'],
+    code: 'const s=1+Math.sin(t*Math.PI*2)*0.08; return {scaleX:s,scaleY:s};' },
+  { id: 'jitter',     name: '紧张颤抖',  emoji: '😰', tags: ['nervous','scared','worried','awkward'],
+    code: 'return {x:(Math.random()-0.5)*4, y:(Math.random()-0.5)*4};' },
+  { id: 'float',      name: '飘浮',      emoji: '💨', tags: ['calm','dreamy','peaceful','floating'],
+    code: 'return {y: Math.sin(t*Math.PI*2)*8, rotation: Math.sin(t*Math.PI*2)*3};' },
+  { id: 'drop',       name: '下坠反弹',  emoji: '⬇️', tags: ['fall','drop','arrive','crash'],
+    code: 'const b=Math.abs(Math.sin(t*Math.PI*2)); return {y:(1-b)*-20};' },
+  { id: 'wiggle',     name: '扭动',      emoji: '🐛', tags: ['playful','silly','wiggle','cute'],
+    code: 'return {rotation: Math.sin(t*Math.PI*6)*8, x: Math.sin(t*Math.PI*4)*3};' },
+  { id: 'headnod',    name: '点头同意',  emoji: '🙆', tags: ['yes','agree','nod','approve'],
+    code: 'return {y: Math.abs(Math.sin(t*Math.PI*2))*6, scaleY: 1+Math.sin(t*Math.PI*2)*0.03};' },
+  { id: 'shakehead',  name: '摇头否定',  emoji: '🙅', tags: ['no','reject','disagree','deny'],
+    code: 'return {rotation: Math.sin(t*Math.PI*4)*6};' },
+  { id: 'rainbow',    name: '彩虹变色',  emoji: '🌈', tags: ['happy','joy','colorful','magic'],
+    code: 'return {scaleX:1+Math.sin(t*Math.PI*2)*0.05, scaleY:1+Math.cos(t*Math.PI*2)*0.05, rotation:Math.sin(t*Math.PI*2)*3};' }
+];
+
+export function animationPresets() { return ANIM_PRESETS; }
+
+// --- Brief: 给张图 + prompt,LLM 挑 3 个适配动效 + 给 3 条 AI 自定义建议 ---
+
+const BRIEF_SYSTEM = `你是表情包动画导演。用户给你一个表情图片(或生成时的 prompt 描述),你要:
+1. 识别主要情绪/动作(如 大笑/摆烂/抖动/惊讶/害羞...)
+2. 从 15 个动效预设里推荐 3 个最适配的(按适配度从高到低,给出 preset_id 和推荐理由一句话)
+3. 额外给 3 条"AI 自定义动效 prompt"作为补充建议(描述你觉得更出彩/有巧思的动效,用户可以一键填入自定义框,每条 ≤ 25 字)
+
+15 个预设及 emotion tags:
+{{PRESETS}}
+
+严格输出 JSON,无 markdown:
+{
+  "detectedEmotion": "识别到的情绪/动作(一个短语)",
+  "recommendations": [
+    {"preset_id":"id","reason":"为什么适合"},
+    {"preset_id":"id","reason":"..."},
+    {"preset_id":"id","reason":"..."}
+  ],
+  "customSuggestions": ["自定义建议 1","自定义建议 2","自定义建议 3"]
+}`;
+
+export async function animateBrief({ sourcePrompt, image, provider, credentials }) {
+  if (!sourcePrompt && !image) throw new Error('需要源 prompt 或图片');
+  if (!hasUsableCredentials(provider, credentials)) {
+    throw new Error('请先配置 LLM API Key');
+  }
+
+  const presetsDesc = ANIM_PRESETS.map(p => `- ${p.id}: ${p.name} (${p.emoji}) · 情绪: [${p.tags.join(',')}]`).join('\n');
+  const systemFilled = BRIEF_SYSTEM.replace('{{PRESETS}}', presetsDesc);
+
+  const userMsg = sourcePrompt
+    ? `源 prompt: ${sourcePrompt}\n\n请推荐 3 个动效 + 3 条自定义建议。`
+    : '请分析这张图并推荐 3 个动效 + 3 条自定义建议。';
+
+  const raw = await chat({
+    system: systemFilled,
+    user: userMsg,
+    images: image ? [image] : [],
+    json: true,
+    temperature: 0.7,
+    provider,
+    credentials
+  });
+  const parsed = safeJsonParse(raw);
+  if (!parsed) return { error: 'llm_parse_failed', raw };
+  return parsed;
+}
+
+// --- Custom: 用户输入描述 → LLM 出 Canvas 函数体代码 ---
+
+const CUSTOM_ANIM_SYSTEM = `你是 Canvas 动画函数生成器。根据用户中文描述输出一段 JS 函数体代码。
+
+硬性规则:
+- 输入参数: t (数值, 0~1, 代表动画进度)
+- 可选返回对象字段: x(水平位移px, 建议 ±30), y(垂直位移, ±30), scaleX / scaleY (0.7~1.4), rotation (度数, ±30), alpha (0~1)
+- 可用: Math.sin/cos/PI/abs/pow/exp/floor/round/random
+- 只输出函数体代码,不含 function 声明,不含 markdown,不含 return 之外的任何解释
+- 字符串里可以出现 // 注释
+- 禁用: document/window/fetch/eval/Function/import/require
+
+严格输出 JSON:
+{ "code": "纯 JS 函数体字符串" }`;
+
+export async function animateCustom({ description, provider, credentials }) {
+  if (!description?.trim()) throw new Error('请输入动画描述');
+  if (!hasUsableCredentials(provider, credentials)) throw new Error('请先配置 LLM API Key');
+
+  const raw = await chat({
+    system: CUSTOM_ANIM_SYSTEM,
+    user: description.trim(),
+    json: true,
+    temperature: 0.5,
+    provider,
+    credentials
+  });
+  const parsed = safeJsonParse(raw);
+  if (!parsed?.code) return { code: (raw || '').trim() };
+  return parsed;
+}

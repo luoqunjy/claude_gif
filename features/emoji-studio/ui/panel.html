@@ -434,11 +434,50 @@
       </div>
 
       <div data-tab-body="gif" hidden>
-        <div class="es-coming">
-          <div class="g">🎬</div>
-          <div class="tt">动画化 GIF</div>
-          <div class="st">P2 即将上线:从文字/角色表情接收图片 → LLM 反推情绪 → 推荐 3 个适配动效 + 3 条 AI 建议 prompt → Canvas 导出 GIF</div>
-          <span class="tag">P2 规划中</span>
+        <div class="es-field">
+          <label>① 源图片 <span style="color:#e11d48">*</span></label>
+          <div class="es-anim-src" id="es-anim-src">
+            <div class="slot-empty">
+              <div style="font-size:24px;opacity:0.4;margin-bottom:4px">🎬</div>
+              <div>从文字/角色表情点 🎬 发过来</div>
+              <div class="slot-hint">或点击下方上传</div>
+            </div>
+          </div>
+          <button class="es-btn full" id="es-anim-upload" style="margin-top:6px">📎 上传图片 / ⌘V 粘贴</button>
+        </div>
+
+        <div class="es-field">
+          <label>② 源描述(可选) <span class="opt">· 让 AI 更好地推荐动效</span></label>
+          <textarea id="es-anim-src-prompt" rows="2" placeholder="例:大笑到流眼泪的 Q 版小女孩,旁边有爆炸元素"></textarea>
+          <button class="es-btn sm" id="es-anim-brief" style="margin-top:6px">🧠 AI 分析 · 推荐动效</button>
+        </div>
+
+        <div class="es-field">
+          <label>③ 参数</label>
+          <div class="es-anim-params">
+            <span>时长</span>
+            <input type="range" id="es-anim-dur" min="500" max="3000" step="100" value="1500">
+            <span class="val" id="es-anim-dur-val">1.5s</span>
+          </div>
+          <div class="es-anim-params">
+            <span>帧数</span>
+            <input type="range" id="es-anim-frames" min="12" max="48" step="4" value="24">
+            <span class="val" id="es-anim-frames-val">24</span>
+          </div>
+          <div class="es-anim-params">
+            <span>循环</span>
+            <select id="es-anim-loop" style="width:90px;border:1px solid var(--pink-200);border-radius:6px;padding:3px 8px;font-size:12px">
+              <option value="-1">无限循环</option>
+              <option value="0">播放一次</option>
+              <option value="3">播放 3 次</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="es-btn primary full" id="es-anim-export" style="margin-top:8px">🎬 导出 GIF</button>
+
+        <div style="font-size:11px;color:var(--ink-500);margin-top:14px;line-height:1.6">
+          💡 右侧选择或自定义动效,下方预览,参数满意就导出
         </div>
       </div>
     </aside>
@@ -633,5 +672,96 @@
   display: flex; align-items: center; justify-content: center;
   color: #d6336c; font-weight: 700; font-size: 13px;
   z-index: 2;
+}
+</style>
+
+<style>
+/* Animation tab P2 styles */
+.es-anim-src {
+  border: 2px dashed var(--pink-300); border-radius: 10px;
+  padding: 12px; min-height: 150px;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; overflow: hidden; position: relative;
+}
+.es-anim-src.has { border-style: solid; border-color: var(--pink-400); padding: 4px; }
+.es-anim-src img { max-width: 100%; max-height: 180px; border-radius: 6px; display: block; }
+
+.es-anim-params {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+  font-size: 12px; color: var(--ink-700);
+}
+.es-anim-params > span:first-child { width: 44px; flex-shrink: 0; }
+.es-anim-params input[type=range] { flex: 1; }
+.es-anim-params .val {
+  min-width: 48px; text-align: center; font-weight: 700; color: #d6336c;
+  background: var(--pink-50); border-radius: 6px; padding: 2px 6px; font-size: 11.5px;
+}
+
+/* Right pane for animation: preview + anim library */
+.es-anim-stage {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.es-anim-preview {
+  background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 14px 14px;
+  border: 1px solid var(--line); border-radius: 12px;
+  height: 320px; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.es-anim-canvas { max-width: 100%; max-height: 100%; display: block; }
+.es-anim-empty-preview { color: var(--ink-500); font-size: 12px; text-align: center; }
+
+.es-anim-sections {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.es-anim-section-title {
+  font-size: 11.5px; font-weight: 800; color: #d6336c;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  display: flex; align-items: center; gap: 6px; margin: 0 0 6px;
+}
+.es-anim-reco-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.es-anim-reco-card {
+  background: linear-gradient(135deg, var(--pink-50), #fff);
+  border: 1.5px solid var(--pink-200); border-radius: 10px;
+  padding: 10px; cursor: pointer;
+  transition: all .15s; display: flex; flex-direction: column; gap: 4px;
+}
+.es-anim-reco-card:hover, .es-anim-reco-card.active {
+  border-color: #d6336c; background: var(--pink-100);
+}
+.es-anim-reco-card.active { box-shadow: 0 3px 12px rgba(214,51,108,0.18); }
+.es-anim-reco-card .h { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.es-anim-reco-card .emj { font-size: 18px; }
+.es-anim-reco-card .why { font-size: 11px; color: var(--ink-500); line-height: 1.45; }
+
+.es-anim-lib-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px;
+}
+.es-anim-lib-item {
+  background: #fff; border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 8px 6px; cursor: pointer; text-align: center;
+  transition: all .15s;
+}
+.es-anim-lib-item:hover, .es-anim-lib-item.active { border-color: #d6336c; background: var(--pink-50); }
+.es-anim-lib-item .emj { font-size: 20px; margin-bottom: 2px; }
+.es-anim-lib-item .n { font-size: 11px; font-weight: 600; color: var(--ink-900); }
+
+.es-anim-custom textarea {
+  width: 100%; border: 1px solid var(--pink-200); border-radius: 8px;
+  padding: 8px 10px; font-size: 13px; font-family: inherit;
+  resize: vertical; min-height: 60px; line-height: 1.5; outline: none;
+}
+.es-anim-custom textarea:focus { border-color: var(--pink-400); box-shadow: 0 0 0 3px rgba(255,139,167,0.18); }
+.es-anim-suggestions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.es-anim-sugg-chip {
+  background: var(--pink-50); border: 1px solid var(--pink-200);
+  color: var(--ink-700); border-radius: 999px;
+  padding: 4px 10px; font-size: 11.5px; cursor: pointer;
+  transition: all .15s;
+}
+.es-anim-sugg-chip:hover { background: var(--pink-100); color: #d6336c; border-color: #d6336c; }
+.es-anim-custom-actions {
+  display: flex; gap: 6px; margin-top: 6px;
 }
 </style>
